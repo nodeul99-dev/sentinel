@@ -1,0 +1,272 @@
+"""
+Sentinel.DS 통합 DB 모듈 (규정검색 + FSS 재무건전성)
+"""
+import json
+import sqlite3
+import os
+from datetime import datetime
+from pathlib import Path
+
+from config import DB_PATH
+
+
+def get_conn() -> sqlite3.Connection:
+    conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row
+    conn.execute("PRAGMA foreign_keys = ON")
+    return conn
+
+
+# ── DB 초기화 ───────────────────────────────────────────────────────────────
+
+def init_db():
+    """규정검색 테이블 초기화"""
+    os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
+    with get_conn() as conn:
+        conn.executescript("""
+            CREATE TABLE IF NOT EXISTS documents (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                doc_name TEXT NOT NULL,
+                doc_category TEXT NOT NULL,
+                filename TEXT NOT NULL,
+                uploaded_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                article_count INTEGER DEFAULT 0,
+                enacted_date TEXT
+            );
+
+            CREATE TABLE IF NOT EXISTS articles (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                doc_id INTEGER REFERENCES documents(id) ON DELETE CASCADE,
+                article_number TEXT,
+                article_title TEXT,
+                article_text TEXT NOT NULL,
+                page_number INTEGER
+            );
+
+            CREATE INDEX IF NOT EXISTS idx_articles_doc_id ON articles(doc_id);
+        """)
+        cols = [r[1] for r in conn.execute("PRAGMA table_info(documents)").fetchall()]
+        if "enacted_date" not in cols:
+            conn.execute("ALTER TABLE documents ADD COLUMN enacted_date TEXT")
+        if "source_type" not in cols:
+            conn.execute("ALTER TABLE documents ADD COLUMN source_type TEXT NOT NULL DEFAULT 'pdf'")
+
+
+def init_fss_tables():
+    """FSS 재무건전성 테이블 초기화"""
+    with get_conn() as conn:
+        conn.executescript("""
+            CREATE TABLE IF NOT EXISTS fss_securities_data (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                company_code TEXT NOT NULL,
+                company_name TEXT NOT NULL,
+                quarter TEXT NOT NULL,
+                data_source TEXT NOT NULL,
+                metrics TEXT NOT NULL,
+                collected_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                UNIQUE(company_code, quarter, data_source)
+            );
+
+            CREATE TABLE IF NOT EXISTS fss_update_log (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                data_source TEXT NOT NULL,
+                quarter TEXT NOT NULL,
+                update_status TEXT,
+                items_count INTEGER,
+                error_message TEXT,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
+
+            CREATE TABLE IF NOT EXISTS fss_companies (
+                company_code TEXT PRIMARY KEY,
+                company_name TEXT NOT NULL,
+                is_domestic INTEGER DEFAULT 1,
+                is_active INTEGER DEFAULT 1,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
+        """)
+
+
+# ── 규정검색: 문서 CRUD ──────────────────────────────────────────────────────
+
+def upsert_document(
+    doc_name: str, doc_category: str, filename: str,
+    enacted_date: str | None = None, source_type: str = "pdf",
+) -> int:
+    with get_conn() as conn:
+        row = conn.execute(
+            "SELECT id FROM documents WHERE doc_name = ? AND doc_category = ?",
+            (doc_name, doc_category),
+        ).fetchone()
+        if row:
+            doc_id = row["id"]
+            conn.execute("DELETE FROM articles WHERE doc_id = ?", (doc_id,))
+            conn.execute(
+                "UPDATE documents SET filename = ?, uploaded_at = ?, enacted_date = ?, source_type = ? WHERE id = ?",
+                (filename, datetime.now().isoformat(), enacted_date, source_type, doc_id),
+            )
+        else:
+            cur = conn.execute(
+                "INSERT INTO documents (doc_name, doc_category, filename, enacted_date, source_type) VALUES (?, ?, ?, ?, ?)",
+                (doc_name, doc_category, filename, enacted_date, source_type),
+            )
+            doc_id = cur.lastrowid
+    return doc_id
+
+
+def update_article_count(doc_id: int, count: int):
+    with get_conn() as conn:
+        conn.execute(
+            "UPDATE documents SET article_count = ? WHERE id = ?", (count, doc_id)
+        )
+
+
+def insert_articles(doc_id: int, articles: list[dict]):
+    with get_conn() as conn:
+        conn.executemany(
+            """INSERT INTO articles (doc_id, article_number, article_title, article_text, page_number)
+               VALUES (:doc_id, :article_number, :article_title, :article_text, :page_number)""",
+            [{"doc_id": doc_id, **a} for a in articles],
+        )
+
+
+def get_all_documents() -> list[dict]:
+    with get_conn() as conn:
+        rows = conn.execute(
+            "SELECT * FROM documents ORDER BY uploaded_at DESC"
+        ).fetchall()
+    return [dict(r) for r in rows]
+
+
+def delete_document(doc_id: int):
+    with get_conn() as conn:
+        conn.execute("DELETE FROM documents WHERE id = ?", (doc_id,))
+
+
+def get_document_by_id(doc_id: int) -> dict | None:
+    with get_conn() as conn:
+        row = conn.execute(
+            "SELECT * FROM documents WHERE id = ?", (doc_id,)
+        ).fetchone()
+    return dict(row) if row else None
+
+
+def get_articles_by_doc_id(doc_id: int) -> list[dict]:
+    with get_conn() as conn:
+        rows = conn.execute(
+            "SELECT * FROM articles WHERE doc_id = ? ORDER BY id", (doc_id,)
+        ).fetchall()
+    return [dict(r) for r in rows]
+
+
+def search_articles(keyword: str, categories: list[str] | None = None) -> list[dict]:
+    if not keyword.strip():
+        return []
+
+    placeholders = ""
+    params: list = [f"%{keyword}%"]
+
+    if categories:
+        ph = ",".join("?" * len(categories))
+        placeholders = f" AND d.doc_category IN ({ph})"
+        params += categories
+
+    sql = f"""
+        SELECT a.id, a.doc_id, a.article_number, a.article_title, a.article_text, a.page_number,
+               d.doc_name, d.doc_category, d.filename, d.source_type, d.enacted_date
+        FROM articles a
+        JOIN documents d ON a.doc_id = d.id
+        WHERE a.article_text LIKE ?{placeholders}
+        ORDER BY d.doc_name, a.id
+    """
+    with get_conn() as conn:
+        rows = conn.execute(sql, params).fetchall()
+    return [dict(r) for r in rows]
+
+
+# ── FSS 재무건전성 ───────────────────────────────────────────────────────────
+
+def save_fss_data(quarter: str, data_source: str, data_list: list[dict]):
+    """
+    수집된 증권사 데이터를 DB에 저장 (upsert).
+
+    Args:
+        quarter: "2024Q3"
+        data_source: "ncr_data"
+        data_list: [{"company_code": ..., "company_name": ..., "metrics": {...}}, ...]
+    """
+    now = datetime.now().isoformat()
+    with get_conn() as conn:
+        for item in data_list:
+            metrics_json = json.dumps(item["metrics"], ensure_ascii=False)
+            conn.execute("""
+                INSERT INTO fss_securities_data
+                    (company_code, company_name, quarter, data_source, metrics, collected_at, updated_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT(company_code, quarter, data_source)
+                DO UPDATE SET
+                    company_name = excluded.company_name,
+                    metrics = excluded.metrics,
+                    updated_at = excluded.updated_at
+            """, (
+                item["company_code"], item["company_name"],
+                quarter, data_source, metrics_json, now, now
+            ))
+
+            # fss_companies 메타데이터 upsert
+            conn.execute("""
+                INSERT OR IGNORE INTO fss_companies (company_code, company_name)
+                VALUES (?, ?)
+            """, (item["company_code"], item["company_name"]))
+
+
+def get_fss_data(quarter: str, data_source: str) -> list[dict]:
+    """특정 분기/소스의 데이터 조회"""
+    with get_conn() as conn:
+        rows = conn.execute("""
+            SELECT company_code, company_name, quarter, data_source, metrics, updated_at
+            FROM fss_securities_data
+            WHERE quarter = ? AND data_source = ?
+            ORDER BY company_name
+        """, (quarter, data_source)).fetchall()
+
+    result = []
+    for row in rows:
+        d = dict(row)
+        d["metrics"] = json.loads(d["metrics"])
+        result.append(d)
+    return result
+
+
+def get_available_quarters(data_source: str) -> list[str]:
+    """데이터가 있는 분기 목록 반환"""
+    with get_conn() as conn:
+        rows = conn.execute("""
+            SELECT DISTINCT quarter FROM fss_securities_data
+            WHERE data_source = ?
+            ORDER BY quarter DESC
+        """, (data_source,)).fetchall()
+    return [r["quarter"] for r in rows]
+
+
+def log_fss_update(data_source: str, quarter: str, status: str,
+                   items_count: int = 0, error_message: str = None):
+    """업데이트 로그 기록"""
+    with get_conn() as conn:
+        conn.execute("""
+            INSERT INTO fss_update_log
+                (data_source, quarter, update_status, items_count, error_message)
+            VALUES (?, ?, ?, ?, ?)
+        """, (data_source, quarter, status, items_count, error_message))
+
+
+def get_fss_update_log(limit: int = 20) -> list[dict]:
+    """최근 업데이트 로그 조회"""
+    with get_conn() as conn:
+        rows = conn.execute("""
+            SELECT * FROM fss_update_log
+            ORDER BY updated_at DESC
+            LIMIT ?
+        """, (limit,)).fetchall()
+    return [dict(r) for r in rows]

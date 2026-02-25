@@ -1,0 +1,27 @@
+# 환경변수 (API 키 포함 — 절대 커밋 금지)
+.env
+
+# DB 데이터 (로컬 전용)
+data/sentinel.db
+data/*.db
+
+# Python 캐시
+__pycache__/
+*.py[cod]
+*.pyo
+
+# 가상환경
+.venv/
+venv/
+env/
+
+# Streamlit 캐시
+.streamlit/
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db

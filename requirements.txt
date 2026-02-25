@@ -1,0 +1,7 @@
+streamlit>=1.30.0
+pdfplumber
+requests
+beautifulsoup4
+plotly
+python-dotenv
+urllib3
