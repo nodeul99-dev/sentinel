@@ -1,21 +1,32 @@
 """
 재무건전성 비율 모니터링 페이지
 """
+import html as _html
 import json
+from datetime import datetime
 
 import streamlit as st
 
 import db
 from api.fss_api import collect_all_securities_data
-from config import COLORS
-from core.constants import FSS_DATA_SOURCES, NCR_METRIC_LABELS
 
-# 표시할 분기 목록 (최신 순)
-QUARTERS = [
-    "2025Q3", "2025Q2", "2025Q1",
-    "2024Q4", "2024Q3", "2024Q2", "2024Q1",
-    "2023Q4",
-]
+def _current_quarter() -> str:
+    """오늘 날짜 기준 현재 분기 반환. 예: '2026Q1'"""
+    now = datetime.now()
+    q = (now.month - 1) // 3 + 1
+    return f"{now.year}Q{q}"
+
+
+def _generate_quarters(start_year: int = 2016) -> list[str]:
+    """start_year Q1 부터 현재 분기까지 전체 분기 목록 반환 (오래된 순)"""
+    now = datetime.now()
+    current_q = (now.month - 1) // 3 + 1
+    result = []
+    for year in range(start_year, now.year + 1):
+        max_q = current_q if year == now.year else 4
+        for q in range(1, max_q + 1):
+            result.append(f"{year}Q{q}")
+    return result
 
 
 def render(subpage: str = None):
@@ -29,198 +40,102 @@ def render(subpage: str = None):
 
 # ── 대시보드 ────────────────────────────────────────────────────────────────
 
-DASHBOARD_QUARTER = "2025Q3"
-
-
 def _render_dashboard():
-    data = db.get_fss_data(DASHBOARD_QUARTER, "ncr_data")
+    available = db.get_available_quarters("ncr_data")
+    dashboard_quarter = available[0] if available else _current_quarter()
+    data = db.get_fss_data(dashboard_quarter, "ncr_data")
 
     col_main, col_side = st.columns([2.2, 1.1])
 
     with col_main:
         st.markdown(
             '<p style="font-size:1.13rem;font-weight:600;color:#14532d;margin:0 0 14px;">'
-            f'국내 증권사 건전성지표 <span style="font-size:0.85rem;font-weight:400;color:#888;">({DASHBOARD_QUARTER} 기준 · 단위: 억원, 연결재무제표)</span></p>',
+            f'국내 증권사 건전성지표 <span style="font-size:0.85rem;font-weight:400;color:#888;">({dashboard_quarter} 기준 · 단위: 억원, 연결재무제표)</span></p>',
             unsafe_allow_html=True,
         )
 
         if not data:
             st.warning(
-                f"**{DASHBOARD_QUARTER}** 데이터가 없습니다. "
+                f"**{dashboard_quarter}** 데이터가 없습니다. "
                 "사이드바의 **데이터관리** 메뉴에서 수집해주세요."
             )
         else:
             _render_ranking_table(data)
 
     with col_side:
-        _render_company_detail(data or [])
+        _render_company_detail()
 
 
 def _render_ranking_table(data: list[dict]):
-    import streamlit.components.v1 as components
+    import pandas as pd
+    from st_aggrid import AgGrid, GridOptionsBuilder, GridUpdateMode, JsCode
 
-    # 자기자본 내림차순 정렬 (초기 순위 기준)
     rows = sorted(data, key=lambda x: x["metrics"].get("equity_capital", 0), reverse=True)
 
-    js_data = []
+    df_rows = []
     for i, item in enumerate(rows, 1):
         m = item["metrics"]
-        js_data.append({
-            "rank":   i,
-            "name":   item["company_name"],
-            "eq":     m.get("equity_capital", 0),
-            "op":     m.get("operating_net_capital", 0),
-            "ncr":    m.get("ncr", 0),
-            "oncr":   m.get("old_ncr", 0),
-            "risk":   m.get("total_risk", 0),
+        df_rows.append({
+            "순위":       i,
+            "회사명":     item["company_name"],
+            "자기자본":   m.get("equity_capital", 0),
+            "영업용순자본": m.get("operating_net_capital", 0),
+            "NCR(%)":     m.get("ncr", 0),
+            "구NCR(%)":   m.get("old_ncr", 0),
+            "총위험액":   m.get("total_risk", 0),
         })
 
-    selected_company = st.query_params.get("company", "")
-    table_height = 44 + len(rows) * 38 + 20
+    df = pd.DataFrame(df_rows)
 
-    html = f"""
-<!DOCTYPE html>
-<html>
-<head>
-<meta charset="utf-8">
-<style>
-  body {{ margin:0; padding:0; font-family: inherit; background: transparent; }}
-  .fin-table {{
-    width: 100%;
-    border-collapse: collapse;
-    font-size: 0.95rem;
-    table-layout: fixed;
-  }}
-  .fin-table colgroup col:nth-child(1) {{ width: 5%; }}
-  .fin-table colgroup col:not(:nth-child(1)) {{ width: calc(95% / 6); }}
-  .fin-table th {{
-    background: #4a7c59;
-    color: #ffffff;
-    padding: 11px 8px;
-    text-align: center;
-    font-weight: 600;
-    font-size: 0.95rem;
-    border: none;
-    cursor: pointer;
-    user-select: none;
-    white-space: nowrap;
-  }}
-  .fin-table th:hover {{ background: #3d6b4a; }}
-  .fin-table th .sort-icon {{
-    display: inline-block;
-    margin-left: 4px;
-    font-size: 0.75rem;
-    opacity: 0.7;
-  }}
-  .fin-table td {{
-    padding: 9px 10px;
-    border-top: 1px solid #d1e8d4;
-    font-size: 0.95rem;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    cursor: pointer;
-  }}
-  .fin-table tr:nth-child(even) td {{ background: #f8fffe; }}
-  .fin-table tr:hover td {{ background: #f0fdf4 !important; }}
-  .fin-table tr.selected td {{ background: #bbf7d0 !important; }}
-  .fin-table td.center {{ text-align: center; }}
-  .fin-table td.left   {{ text-align: left; }}
-  .fin-table td.right  {{ text-align: right; }}
-</style>
-</head>
-<body>
-<div style="overflow-x:auto;">
-<table class="fin-table" id="finTable">
-  <colgroup><col/><col/><col/><col/><col/><col/><col/></colgroup>
-  <thead>
-    <tr>
-      <th onclick="sortTable(0)" data-col="0">순위<span class="sort-icon">⇅</span></th>
-      <th onclick="sortTable(1)" data-col="1">회사명<span class="sort-icon">⇅</span></th>
-      <th onclick="sortTable(2)" data-col="2">자기자본<span class="sort-icon">⇅</span></th>
-      <th onclick="sortTable(3)" data-col="3">영업용순자본<span class="sort-icon">⇅</span></th>
-      <th onclick="sortTable(4)" data-col="4">NCR<span class="sort-icon">⇅</span></th>
-      <th onclick="sortTable(5)" data-col="5">구NCR<span class="sort-icon">⇅</span></th>
-      <th onclick="sortTable(6)" data-col="6">총위험액<span class="sort-icon">⇅</span></th>
-    </tr>
-  </thead>
-  <tbody id="tbody"></tbody>
-</table>
-</div>
+    num_fmt = JsCode("function(p){return p.value==null?'':Math.round(p.value).toLocaleString('ko-KR');}")
+    pct_fmt = JsCode("function(p){return p.value==null?'':p.value.toFixed(1)+'%';}")
 
-<script>
-const RAW = {json.dumps(js_data, ensure_ascii=False)};
-const SELECTED = {json.dumps(selected_company, ensure_ascii=False)};
-let sortCol = -1;
-let sortAsc = true;
+    ds_row_style = JsCode("""
+    function(params) {
+        if (params.data && (
+            params.data['회사명'].indexOf('DS투자') >= 0 ||
+            params.data['회사명'].indexOf('디에스투자') >= 0
+        )) {
+            return {'color': '#dc2626', 'fontWeight': 'bold'};
+        }
+    }
+    """)
 
-function fmt_int(v)  {{ return Number(v).toLocaleString('ko-KR'); }}
-function fmt_pct(v)  {{ return Number(v).toLocaleString('ko-KR', {{minimumFractionDigits:1, maximumFractionDigits:1}}) + '%'; }}
+    gb = GridOptionsBuilder.from_dataframe(df)
+    gb.configure_selection(selection_mode="single", use_checkbox=False)
+    gb.configure_default_column(sortable=True, resizable=False, suppressMovable=True)
+    gb.configure_column("순위",       width=58,  suppressSizeToFit=True, type=["numericColumn"])
+    gb.configure_column("회사명",     flex=2,    minWidth=100)
+    gb.configure_column("자기자본",   flex=1,    minWidth=80, valueFormatter=num_fmt, type=["numericColumn"])
+    gb.configure_column("영업용순자본", flex=1,  minWidth=80, valueFormatter=num_fmt, type=["numericColumn"])
+    gb.configure_column("NCR(%)",     flex=1,    minWidth=70, valueFormatter=pct_fmt, type=["numericColumn"])
+    gb.configure_column("구NCR(%)",   flex=1,    minWidth=70, valueFormatter=pct_fmt, type=["numericColumn"])
+    gb.configure_column("총위험액",   flex=1,    minWidth=80, valueFormatter=num_fmt, type=["numericColumn"])
+    gb.configure_grid_options(getRowStyle=ds_row_style, rowHeight=34, headerHeight=40)
 
-function buildRows(data) {{
-  const tbody = document.getElementById('tbody');
-  tbody.innerHTML = '';
-  data.forEach(function(d) {{
-    const isDS = d.name.includes('DS투자') || d.name.includes('디에스투자');
-    const tr = document.createElement('tr');
-    if (d.name === SELECTED) tr.classList.add('selected');
-    const style = isDS ? ' style="color:#dc2626;font-weight:700;"' : '';
-    tr.innerHTML =
-      '<td class="center"' + style + '>' + d.rank + '</td>' +
-      '<td class="left"'   + style + '>' + d.name + '</td>' +
-      '<td class="right"'  + style + '>' + fmt_int(d.eq)   + '</td>' +
-      '<td class="right"'  + style + '>' + fmt_int(d.op)   + '</td>' +
-      '<td class="right"'  + style + '>' + fmt_pct(d.ncr)  + '</td>' +
-      '<td class="right"'  + style + '>' + fmt_pct(d.oncr) + '</td>' +
-      '<td class="right"'  + style + '>' + fmt_int(d.risk) + '</td>';
-    (function(name) {{
-      tr.onclick = function() {{
-        try {{
-          var sp = new URLSearchParams(window.parent.location.search);
-          sp.set('company', name);
-          window.parent.location.href = window.parent.location.pathname + '?' + sp.toString();
-        }} catch(e) {{}}
-      }};
-    }})(d.name);
-    tbody.appendChild(tr);
-  }});
-}}
+    grid_options = gb.build()
 
-function sortTable(col) {{
-  const ths = document.querySelectorAll('.fin-table th');
-  if (sortCol === col) {{
-    sortAsc = !sortAsc;
-  }} else {{
-    sortCol = col;
-    sortAsc = true;
-  }}
-  ths.forEach(function(th, i) {{
-    th.querySelector('.sort-icon').textContent = (i === col) ? (sortAsc ? '↑' : '↓') : '⇅';
-  }});
+    grid_response = AgGrid(
+        df,
+        gridOptions=grid_options,
+        update_mode=GridUpdateMode.SELECTION_CHANGED,
+        height=40 + len(df_rows) * 34 + 16,
+        allow_unsafe_jscode=True,
+        theme="alpine",
+        fit_columns_on_grid_load=True,
+    )
 
-  const colKeys = ['rank','name','eq','op','ncr','oncr','risk'];
-  const key = colKeys[col];
-  const sorted = RAW.slice().sort(function(a, b) {{
-    const av = a[key], bv = b[key];
-    if (typeof av === 'number') return sortAsc ? av - bv : bv - av;
-    return sortAsc ? String(av).localeCompare(String(bv), 'ko') : String(bv).localeCompare(String(av), 'ko');
-  }});
-  buildRows(sorted);
-}}
-
-buildRows(RAW);
-</script>
-</body>
-</html>
-"""
-    components.html(html, height=table_height, scrolling=False)
+    sel = grid_response.selected_rows
+    if sel is not None and len(sel) > 0:
+        name = sel.iloc[0]["회사명"] if hasattr(sel, "iloc") else sel[0]["회사명"]
+        st.session_state["selected_company"] = name
 
 
 # ── 추이 분석 페이지 ─────────────────────────────────────────────────────────
 
 def _render_trends():
     st.markdown(
-        '<p style="font-size:0.85rem;font-weight:600;color:#14532d;margin:0 0 12px;">'
+        '<p style="font-size:1.13rem;font-weight:600;color:#14532d;margin:0 0 12px;">'
         '추이 분석</p>',
         unsafe_allow_html=True,
     )
@@ -265,33 +180,39 @@ def _render_trends():
 
 def _render_data_management():
     st.markdown(
-        '<p style="font-size:0.85rem;font-weight:600;color:#14532d;margin:0 0 12px;">'
+        '<p style="font-size:1.13rem;font-weight:600;color:#14532d;margin:0 0 12px;">'
         '데이터 관리</p>',
         unsafe_allow_html=True,
     )
 
-    # 수동 수집 섹션
-    st.markdown("#### 데이터 수집")
-    col1, col2, col3 = st.columns([2, 2, 1])
+    # ── 최신 데이터 수집 ───────────────────────────────────────────────────────
+    st.markdown("#### 최신 데이터 수집")
+    current_q = _current_quarter()
+    col1, col2 = st.columns([3, 1])
     with col1:
-        quarter = st.selectbox("분기", QUARTERS, key="mgmt_quarter")
+        st.caption(f"현재 분기: **{current_q}**  ·  수집 후 대시보드에 반영됩니다.")
     with col2:
-        data_source = st.selectbox(
-            "소스",
-            list(FSS_DATA_SOURCES.keys()),
-            format_func=lambda x: FSS_DATA_SOURCES[x],
-            key="mgmt_source",
-        )
-    with col3:
-        st.markdown("<div style='padding-top:28px;'></div>", unsafe_allow_html=True)
         if st.button("수집 시작", type="primary", use_container_width=True):
-            _update_fss_data(quarter, data_source)
+            _update_fss_data(current_q, "ncr_data")
 
     st.divider()
 
-    # 업데이트 로그
+    available = set(db.get_available_quarters("ncr_data"))
+    missing = [q for q in _generate_quarters(2016) if q not in available]
+
+    if available:
+        st.caption("※ 수집 로직 변경 후 기존 데이터를 덮어써야 할 경우 아래 버튼을 사용하세요.")
+        if st.button("강제 재수집 (최근 1년, 기존 데이터 덮어쓰기)", type="secondary"):
+            now = datetime.now()
+            one_year_ago = f"{now.year - 1}Q{(now.month - 1) // 3 + 1}"
+            force_quarters = sorted(q for q in set(available) | set(missing) if q >= one_year_ago)
+            _collect_historical(force_quarters)
+
+    st.divider()
+
+    # ── 수집 로그 ──────────────────────────────────────────────────────────────
     st.markdown("#### 수집 로그")
-    logs = db.get_fss_update_log(limit=15)
+    logs = db.get_fss_update_log(limit=20)
     if not logs:
         st.caption("수집 이력이 없습니다.")
     else:
@@ -300,7 +221,6 @@ def _render_data_management():
             rows.append({
                 "시각": log["updated_at"][:19],
                 "분기": log["quarter"],
-                "소스": FSS_DATA_SOURCES.get(log["data_source"], log["data_source"]),
                 "상태": "✅ 성공" if log["update_status"] == "success" else "❌ 실패",
                 "건수": log["items_count"],
                 "오류": log.get("error_message") or "",
@@ -308,20 +228,17 @@ def _render_data_management():
         st.dataframe(rows, use_container_width=True, hide_index=True)
 
 
-def _render_company_detail(data: list[dict]):
+def _render_company_detail():
+    import streamlit.components.v1 as components
+
+    selected = st.session_state.get("selected_company", "")
+
     st.markdown(
-        '<p style="font-size:0.95rem;font-weight:600;color:#14532d;margin:0 0 10px;">회사 상세</p>',
+        '<p style="font-size:1.13rem;font-weight:600;color:#14532d;margin:0 0 6px;">회사 상세</p>',
         unsafe_allow_html=True,
     )
 
-    if not data:
-        st.caption("데이터가 없습니다.")
-        return
-
-    companies = [d["company_name"] for d in data]
-    selected = st.query_params.get("company", "")
-
-    if not selected or selected not in companies:
+    if not selected:
         st.markdown(
             '<p style="font-size:0.82rem;color:#94a3b8;margin-top:20px;">'
             '← 왼쪽 표에서 증권사를 클릭하세요</p>',
@@ -329,55 +246,222 @@ def _render_company_detail(data: list[dict]):
         )
         return
 
-    item = next((d for d in data if d["company_name"] == selected), None)
-    if not item:
+    history = db.get_company_history(selected, "ncr_data", n=4)
+    if not history:
+        st.caption("데이터가 없습니다.")
         return
 
-    m = item["metrics"]
+    display_history = history
+
     is_ds = "DS투자" in selected or "디에스투자" in selected
-    name_color = "#dc2626" if is_ds else "#374151"
+    name_color = "#dc2626" if is_ds else "#0f172a"
 
-    def metric_card(label: str, value, is_pct: bool = False):
-        if is_pct:
-            formatted = f"{value:,.1f}%"
-        else:
-            formatted = f"{int(value):,}"
-        st.markdown(
-            f"""<div style="
-                background:#ffffff;
-                border:1px solid #d1e8d4;
-                border-radius:8px;
-                padding:10px 14px;
-                margin-bottom:8px;
-            ">
-              <div style="font-size:0.75rem;color:#64748b;margin-bottom:3px;">{label}</div>
-              <div style="font-size:1.05rem;font-weight:700;color:#14532d;">{formatted}</div>
-            </div>""",
-            unsafe_allow_html=True,
-        )
+    js_data = [
+        {
+            "quarter":         item["quarter"],
+            "equity_capital":  item["metrics"].get("equity_capital", 0),
+            "net_income_q":    item["metrics"].get("net_income_q"),
+            "ncr":             item["metrics"].get("ncr", 0),
+            "old_ncr":         item["metrics"].get("old_ncr", 0),
+            "total_risk":      item["metrics"].get("total_risk", 0),
+            "required_equity": item["metrics"].get("required_equity", 0),
+        }
+        for item in display_history
+    ]
 
-    st.markdown(
-        f'<p style="font-size:0.85rem;font-weight:600;color:{name_color};margin:8px 0 10px;">{selected}</p>',
-        unsafe_allow_html=True,
-    )
-    metric_card("NCR", m.get("ncr", 0), is_pct=True)
-    metric_card("구NCR", m.get("old_ncr", 0), is_pct=True)
-    metric_card("자기자본 (억원)", m.get("equity_capital", 0))
-    metric_card("영업용순자본 (억원)", m.get("operating_net_capital", 0))
-    metric_card("총위험액 (억원)", m.get("total_risk", 0))
-    metric_card("필요유지자기자본 (억원)", m.get("required_equity", 0))
+    components.html(_build_detail_html(selected, name_color, js_data), height=620, scrolling=False)
+
+
+def _build_detail_html(company: str, name_color: str, js_data: list) -> str:
+    esc = _html.escape(company)
+    n_q = len(js_data)
+    data_json = json.dumps(js_data, ensure_ascii=False)
+    return f"""<!DOCTYPE html><html><head><meta charset="utf-8"><style>
+*{{box-sizing:border-box;margin:0;padding:0}}
+body{{font-family:-apple-system,'Segoe UI',sans-serif;background:transparent;color:#334155}}
+.cname{{font-size:1.14rem;font-weight:700;color:{name_color};margin-bottom:2px}}
+.csub{{font-size:.87rem;color:#94a3b8;margin-bottom:10px}}
+.mc{{display:flex;align-items:center;padding:8px 0;border-bottom:1px solid #f1f5f9}}
+.mc:last-child{{border-bottom:none}}
+.ml{{flex:0 0 52%;min-width:0}}
+.mlb{{font-size:.87rem;color:#94a3b8;margin-bottom:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}}
+.mlv{{font-size:1.14rem;font-weight:700;color:#14532d;white-space:nowrap}}
+.mr{{flex:0 0 48%;display:flex;justify-content:flex-end;align-items:center;padding-right:32px}}
+</style></head><body>
+<div class="cname">{esc}</div>
+<div class="csub">최근 {n_q}개 분기 추이</div>
+<div id="cards"></div>
+<script>
+var DATA={data_json};
+var METRICS=[
+  {{key:'equity_capital', label:'자기자본',          unit:'억원',pct:false}},
+  {{key:'net_income_q',   label:'당기순이익 (분기)', unit:'억원',pct:false}},
+  {{key:'ncr',            label:'NCR',              unit:'%',  pct:true }},
+  {{key:'old_ncr',        label:'구NCR',            unit:'%',  pct:true }},
+  {{key:'total_risk',     label:'총위험액',           unit:'억원',pct:false}},
+  {{key:'required_equity',label:'필요유지자기자본',  unit:'억원',pct:false}},
+];
+function fmt(v,pct){{
+  if(v===null||v===undefined)return 'N/A';
+  if(pct)return v.toLocaleString('ko-KR',{{minimumFractionDigits:1,maximumFractionDigits:1}})+'%';
+  return Math.round(v).toLocaleString('ko-KR')+'억원';
+}}
+function fmtSpark(v,pct){{
+  if(v===null||v===undefined)return '';
+  if(pct)return v.toLocaleString('ko-KR',{{minimumFractionDigits:1,maximumFractionDigits:1}})+'%';
+  return Math.round(v).toLocaleString('ko-KR');
+}}
+function makeSpark(vals,pct){{
+  var W=120,H=60,LP=4,RP=4,TP=16,BP=14;
+  var svg=document.createElementNS('http://www.w3.org/2000/svg','svg');
+  svg.setAttribute('width',W);svg.setAttribute('height',H);
+  svg.setAttribute('viewBox','0 0 '+W+' '+H);
+  svg.style.overflow='visible';
+  var n=vals.length;
+  if(!n)return svg;
+  var nonNull=vals.filter(function(d){{return d.v!==null&&d.v!==undefined;}});
+  if(!nonNull.length)return svg;
+  var vs=nonNull.map(function(d){{return d.v;}});
+  var minV=Math.min.apply(null,vs),maxV=Math.max.apply(null,vs);
+  var rng=maxV-minV||1;
+  var xs=vals.map(function(_,i){{return n===1?W/2:LP+i*(W-LP-RP)/(n-1);}});
+  var ys=vals.map(function(d){{
+    return(d.v!==null&&d.v!==undefined)?TP+(1-(d.v-minV)/rng)*(H-TP-BP):null;
+  }});
+  var ptStr='',nnc=0;
+  xs.forEach(function(x,i){{if(ys[i]!==null){{ptStr+=x+','+ys[i]+' ';nnc++;}}}});
+  if(nnc>1){{
+    var pl=document.createElementNS('http://www.w3.org/2000/svg','polyline');
+    pl.setAttribute('points',ptStr.trim());
+    pl.setAttribute('fill','none');pl.setAttribute('stroke','#a3e635');
+    pl.setAttribute('stroke-width','1.5');pl.setAttribute('stroke-linejoin','round');
+    svg.appendChild(pl);
+  }}
+  vals.forEach(function(d,i){{
+    var t=document.createElementNS('http://www.w3.org/2000/svg','text');
+    t.setAttribute('x',xs[i]);t.setAttribute('y',H-1);
+    t.setAttribute('text-anchor','middle');
+    t.setAttribute('font-size','9');t.setAttribute('fill','#94a3b8');
+    t.textContent=d.q.slice(2);
+    svg.appendChild(t);
+  }});
+  vals.forEach(function(d,i){{
+    if(ys[i]===null)return;
+    var isLatest=(i===n-1);
+    var vl=document.createElementNS('http://www.w3.org/2000/svg','text');
+    var above=(ys[i]>H/2);
+    vl.setAttribute('x',xs[i]);
+    vl.setAttribute('y',above?ys[i]-8:ys[i]+12);
+    var anchor=xs[i]>W*0.65?'end':(xs[i]<W*0.35?'start':'middle');
+    vl.setAttribute('text-anchor',anchor);
+    vl.setAttribute('font-size','10');
+    vl.setAttribute('fill',isLatest?'#14532d':'#475569');
+    vl.setAttribute('font-weight',isLatest?'700':'400');
+    vl.setAttribute('pointer-events','none');
+    vl.textContent=fmtSpark(d.v,pct);
+    vl.style.display=isLatest?'':'none';
+    svg.appendChild(vl);
+    var c=document.createElementNS('http://www.w3.org/2000/svg','circle');
+    c.setAttribute('cx',xs[i]);c.setAttribute('cy',ys[i]);
+    c.setAttribute('r',isLatest?5:4);
+    c.setAttribute('fill',isLatest?'#4d7c0f':'#a3e635');
+    c.setAttribute('stroke','#ffffff');c.setAttribute('stroke-width','1.5');
+    c.style.cursor=isLatest?'default':'pointer';
+    if(!isLatest){{
+      (function(lbl){{
+        c.addEventListener('mouseover',function(){{lbl.style.display='';}});
+        c.addEventListener('mouseout',function(){{lbl.style.display='none';}});
+      }})(vl);
+    }}
+    svg.appendChild(c);
+  }});
+  return svg;
+}}
+var container=document.getElementById('cards');
+var latest=DATA[DATA.length-1]||{{}};
+METRICS.forEach(function(m){{
+  var card=document.createElement('div');card.className='mc';
+  var left=document.createElement('div');left.className='ml';
+  var lbl=document.createElement('div');lbl.className='mlb';
+  lbl.textContent=m.label;
+  var val=document.createElement('div');val.className='mlv';
+  val.textContent=fmt(latest[m.key],m.pct);
+  left.appendChild(lbl);left.appendChild(val);
+  var right=document.createElement('div');right.className='mr';
+  var sv=DATA.map(function(d){{return{{q:d.quarter,v:d[m.key]!==undefined?d[m.key]:null}};}});
+  right.appendChild(makeSpark(sv,m.pct));
+  card.appendChild(left);card.appendChild(right);
+  container.appendChild(card);
+}});
+</script></body></html>"""
 
 
 # ── 데이터 갱신 공통 함수 ────────────────────────────────────────────────────
 
-def _update_fss_data(quarter: str, data_source: str):
-    with st.spinner(f"{quarter} {FSS_DATA_SOURCES.get(data_source, data_source)} 데이터 수집 중..."):
+def _fmt_quarter(q: str) -> str:
+    """'2025Q3' → '2025년 3분기'"""
+    return f"{q[:4]}년 {q[5]}분기"
+
+
+def _collect_historical(quarters: list[str]):
+    """미수집(또는 강제 재수집) 분기를 순서대로 수집. 오래된 것부터."""
+    total = len(quarters)
+    progress = st.progress(0, text="이력 수집 준비 중...")
+    status = st.empty()
+    success_cnt, fail_cnt = 0, 0
+
+    for i, q in enumerate(quarters):
+        status.markdown(f"`{q}` 수집 중... ({i + 1}/{total})")
         try:
-            data_list = collect_all_securities_data(quarter, data_source)
-            db.save_fss_data(quarter, data_source, data_list)
-            db.log_fss_update(data_source, quarter, "success", len(data_list))
-            st.success(f"✅ {len(data_list)}개 증권사 데이터 업데이트 완료!")
-            st.rerun()
+            data_list = collect_all_securities_data(q)
+            if data_list:
+                db.save_fss_data(q, "ncr_data", data_list)
+                db.log_fss_update("ncr_data", q, "success", len(data_list))
+                success_cnt += 1
+            else:
+                db.log_fss_update("ncr_data", q, "success", 0)
         except Exception as e:
-            db.log_fss_update(data_source, quarter, "failed", 0, str(e))
-            st.error(f"❌ 수집 실패: {e}")
+            db.log_fss_update("ncr_data", q, "failed", 0, str(e))
+            fail_cnt += 1
+        progress.progress((i + 1) / total, text=f"{i + 1}/{total} 완료")
+
+    status.empty()
+    progress.empty()
+
+    latest = db.get_available_quarters("ncr_data")
+    if latest:
+        msg = f"✅ {_fmt_quarter(latest[0])}까지 최신 자료를 모두 수집했습니다."
+        if fail_cnt:
+            msg += f" (실패 {fail_cnt}개 분기)"
+        st.success(msg)
+    else:
+        st.warning("수집된 데이터가 없습니다.")
+    st.rerun()
+
+
+def _update_fss_data(quarter: str, data_source: str):
+    """현재 분기부터 최대 4분기 거슬러 올라가며 데이터가 있는 최신 분기를 수집."""
+    all_q = _generate_quarters(2016)
+    # 지정 분기 이하를 최신순으로 최대 4개 시도
+    candidates = [q for q in reversed(all_q) if q <= quarter][:4]
+
+    found_quarter = None
+    with st.spinner("최신 데이터 조회 중..."):
+        for q in candidates:
+            try:
+                data_list = collect_all_securities_data(q)
+                if data_list:
+                    db.save_fss_data(q, data_source, data_list)
+                    db.log_fss_update(data_source, q, "success", len(data_list))
+                    found_quarter = q
+                    break
+                else:
+                    db.log_fss_update(data_source, q, "success", 0)
+            except Exception as e:
+                db.log_fss_update(data_source, q, "failed", 0, str(e))
+
+    if found_quarter:
+        st.success(f"✅ {_fmt_quarter(found_quarter)}까지 최신 자료를 모두 수집했습니다.")
+        st.rerun()
+    else:
+        st.error("수집 가능한 데이터가 없습니다. 잠시 후 다시 시도해주세요.")

@@ -23,16 +23,8 @@ st.set_page_config(
 db.init_db()
 db.init_fss_tables()
 
-# ── 세션 기본값 ───────────────────────────────────────────────────────────────
-if "sb_expanded" not in st.session_state:
-    st.session_state["sb_expanded"] = False
-
-if "sb_exp" in st.query_params:
-    st.session_state["sb_expanded"] = (st.query_params["sb_exp"] == "1")
-
-is_exp     = st.session_state["sb_expanded"]
-sb_w       = "154px" if is_exp else "68px"
-sb_total_w = "170px" if is_exp else "84px"
+SB_W       = "70px"
+SB_TOTAL_W = "86px"  # left:8px + width:70px + gap:8px
 
 # ── URL 파라미터 ──────────────────────────────────────────────────────────────
 page    = st.query_params.get("page", "search")
@@ -54,7 +46,7 @@ section[data-testid="stMain"] {{
     background: #eaf2eb !important;
     position: fixed !important;
     top: 84px !important;
-    left: {sb_total_w} !important;
+    left: {SB_TOTAL_W} !important;
     right: 8px !important;
     bottom: 0 !important;
     overflow-y: auto !important;
@@ -90,7 +82,7 @@ div[data-testid="stVerticalBlock"] {{
 /* ── 메인·보조 패널 컬럼 (흰 둥근 박스) ── */
 div[data-testid="stColumn"] {{
     background: #ffffff !important;
-    border-radius: 7px !important;
+    border-radius: 9px !important;
     box-shadow: 0 1px 8px rgba(0,0,0,.07) !important;
     padding: 22px 26px !important;
 }}
@@ -104,7 +96,7 @@ div[data-testid="stColumn"] div[data-testid="stColumn"] {{
 /* ── 패널 간격 ── */
 div[data-testid="stColumns"],
 div[data-testid="stHorizontalBlock"] {{
-    gap: 8px !important;
+    gap: 10px !important;
     align-items: flex-start !important;
     margin-top: 0 !important;
     padding-top: 0 !important;
@@ -200,11 +192,6 @@ _svg_docs    = '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" v
 _svg_chart   = '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>'
 _svg_gear    = '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>'
 _svg_comm    = '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>'
-_svg_chev_r  = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.75" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>'
-_svg_chev_l  = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.75" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>'
-
-_next_exp = 0 if is_exp else 1
-_chev_svg = _svg_chev_l if is_exp else _svg_chev_r
 _lnk = "display:flex;align-items:center;border-radius:6px;text-decoration:none;margin:1px 0;transition:color 0.15s;"
 
 # ── 페이지별 사이드바 메뉴 ─────────────────────────────────────────────────────
@@ -214,8 +201,7 @@ _SIDEBAR_MENUS = {
         ("docs",    _svg_docs,   "문서관리",   "subpage=docs"),
     ],
     "finance": [
-        ("finance",  _svg_finance, "대시보드",  ""),
-        ("trends",   _svg_chart,   "추이분석",  "subpage=trends"),
+        ("finance",  _svg_chart,   "대시보드",  ""),
         ("data",     _svg_gear,    "데이터관리", "subpage=data"),
     ],
     "committee": [
@@ -226,54 +212,29 @@ _SIDEBAR_MENUS = {
 menus = _SIDEBAR_MENUS.get(page, [])
 _nav_html = ""
 for _sp, _ni, _nl, _qp in menus:
-    _is_active = (subpage == _sp) or (subpage is None and _sp == page) or \
-                 (subpage is None and _qp == "" and menus.index((_sp, _ni, _nl, _qp)) == 0)
-    _fw = "700" if _is_active else "400"
     _href = f"/?page={page}&{_qp}" if _qp else f"/?page={page}"
-    if is_exp:
-        _nav_html += (
-            f'<a href="{_href}" target="_self" class="sb-link" style="{_lnk}'
-            f'gap:10px;padding:18px 10px;font-weight:{_fw};font-size:0.875rem;">'
-            f'<span style="flex-shrink:0;display:flex;">{_ni}</span><span>{_nl}</span>'
-            f'</a>'
-        )
-    else:
-        _nav_html += (
-            f'<a href="{_href}" target="_self" class="sb-link" style="{_lnk}'
-            f'justify-content:center;padding:20px 0;">'
-            f'<span style="display:flex;">{_ni}</span>'
-            f'</a>'
-        )
-
-if is_exp:
-    _toggle = (
-        f'<a href="/?page={page}&sb_exp={_next_exp}" target="_self" class="sb-link" style="{_lnk}'
-        f'justify-content:flex-end;padding:18px 10px;">{_chev_svg}</a>'
-    )
-else:
-    _toggle = (
-        f'<a href="/?page={page}&sb_exp={_next_exp}" target="_self" class="sb-link" style="{_lnk}'
-        f'justify-content:center;padding:20px 0;">{_chev_svg}</a>'
+    _nav_html += (
+        f'<a href="{_href}" target="_self" class="sb-link" style="{_lnk}'
+        f'justify-content:center;padding:20px 0;">'
+        f'<span style="display:flex;">{_ni}</span>'
+        f'</a>'
     )
 
 # ── 사이드바 ──────────────────────────────────────────────────────────────────
 st.markdown(f"""
 <div style="
     position:fixed; left:8px; top:84px;
-    width:{sb_w}; height:calc(100vh - 92px);
+    width:{SB_W}; height:calc(100vh - 92px);
     background:#0f172a;
-    border-radius:7px;
+    border-radius:9px;
     box-shadow:0 2px 12px rgba(0,0,0,.18);
     overflow:hidden;
     z-index:100;
-    transition:width 0.18s ease;
     box-sizing:border-box;
     padding:0 8px;
 ">
-  <div style="display:flex;flex-direction:column;height:100%;padding-top:8px;">
+  <div style="padding-top:8px;">
     <nav>{_nav_html}</nav>
-    <div style="flex:1;"></div>
-    {_toggle}
   </div>
 </div>
 """, unsafe_allow_html=True)
@@ -307,7 +268,7 @@ menu_pills = "".join(
 st.markdown(f"""
 <div style="
     background:#fff;
-    border-radius:7px;
+    border-radius:9px;
     box-shadow:0 1px 8px rgba(0,0,0,.07);
     padding:0 28px;display:flex;align-items:center;
     justify-content:space-between;height:68px;
@@ -348,7 +309,7 @@ def _render_side_panel():
                 st.rerun()
     else:
         st.markdown(
-            '<div style="font-size:0.78rem;font-weight:600;color:#64748b;'
+            '<div style="font-size:1.13rem;font-weight:600;color:#14532d;'
             'padding:6px 0 0;">조문 원본</div>',
             unsafe_allow_html=True,
         )

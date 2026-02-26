@@ -112,6 +112,7 @@ def fetch_ncr_data(session: requests.Session, company: dict, start_mm: str, end_
         "required_equity": 0,
         "operating_net_capital": 0,
         "old_ncr": 0,
+        "net_income_q": None,
     }
 
     def _get(list_no: str) -> Optional[dict]:
@@ -171,6 +172,16 @@ def fetch_ncr_data(session: requests.Session, company: dict, start_mm: str, end_
             (result['operating_net_capital'] / result['total_risk']) * 100, 2
         )
 
+    # 당기순이익(분기 단독): SF307 'a' 컬럼 = 당분기값 직접 사용
+    rows_inc = _get("SF307")
+    if rows_inc:
+        for row in rows_inc:
+            if row.get('account_cd') == 'J':
+                val_a = float(row['a']) if row.get('a') else None
+                if val_a is not None:
+                    result['net_income_q'] = int(val_a / 100000000)
+                break
+
     # 데이터 없으면 None
     if result['equity_capital'] == 0 and result['ncr'] == 0:
         print(f"  [SKIP] {finance_nm}: 데이터 없음")
@@ -184,11 +195,10 @@ def fetch_ncr_data(session: requests.Session, company: dict, start_mm: str, end_
 
 
 # ── 전체 증권사 데이터 수집 ──────────────────────────────────────────────────
-def collect_all_securities_data(quarter: str, data_source: str = "ncr_data") -> List[dict]:
+def collect_all_securities_data(quarter: str) -> List[dict]:
     """
     Args:
         quarter: "2024Q3" 형식
-        data_source: "ncr_data" (현재는 NCR만 지원)
 
     Returns:
         [{"company_code": ..., "company_name": ..., "metrics": {...}}, ...]

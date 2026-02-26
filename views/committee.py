@@ -6,7 +6,7 @@ import streamlit as st
 
 def render(subpage: str = None):
     st.markdown(
-        '<p style="font-size:0.85rem;font-weight:600;color:#14532d;margin:0 0 2px;">'
+        '<p style="font-size:1.13rem;font-weight:600;color:#14532d;margin:0 0 2px;">'
         '위원회</p>'
         '<p style="font-size:0.75rem;color:#999;margin:0 0 24px;">'
         '위원회 관련 기능은 향후 구현 예정입니다.</p>',

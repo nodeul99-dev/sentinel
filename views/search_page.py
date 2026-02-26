@@ -14,7 +14,7 @@ def render():
         del st.query_params["hist_kw"]
 
     st.markdown(
-        '<p style="font-size:0.85rem;font-weight:600;color:#14532d;margin:0 0 2px;">'
+        '<p style="font-size:1.13rem;font-weight:600;color:#14532d;margin:0 0 2px;">'
         '규정 검색</p>'
         '<p style="font-size:0.75rem;color:#999;margin:0 0 12px;">'
         '검색어를 입력하면 해당 단어가 포함된 조문을 즉시 확인할 수 있습니다.</p>',

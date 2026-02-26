@@ -24,7 +24,7 @@ CATEGORY_COLORS = {
 
 def render():
     st.markdown(
-        '<p style="font-size:0.85rem;font-weight:600;color:#14532d;margin:0 0 14px;">'
+        '<p style="font-size:1.13rem;font-weight:600;color:#14532d;margin:0 0 14px;">'
         '문서 관리</p>',
         unsafe_allow_html=True,
     )

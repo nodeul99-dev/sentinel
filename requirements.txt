@@ -5,3 +5,4 @@ beautifulsoup4
 plotly
 python-dotenv
 urllib3
+streamlit-aggrid

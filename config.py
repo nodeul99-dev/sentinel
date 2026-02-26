@@ -16,7 +16,8 @@ DB_PATH = PROJECT_ROOT / "data" / "sentinel.db"
 
 # API 키 (환경변수에서 로드)
 LAW_API_KEY = os.getenv("LAW_API_KEY", "")
-FSS_API_KEY = os.getenv("FSS_API_KEY") or "4b992ee15d8514a53aeb93a15169b8b4"
+FSS_API_KEY  = os.getenv("FSS_API_KEY") or "4b992ee15d8514a53aeb93a15169b8b4"
+DART_API_KEY = os.getenv("DART_API_KEY", "")
 
 # 색상 테마 (그린)
 COLORS = {

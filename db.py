@@ -78,13 +78,6 @@ def init_fss_tables():
                 updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             );
 
-            CREATE TABLE IF NOT EXISTS fss_companies (
-                company_code TEXT PRIMARY KEY,
-                company_name TEXT NOT NULL,
-                is_domestic INTEGER DEFAULT 1,
-                is_active INTEGER DEFAULT 1,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-            );
         """)
 
 
@@ -214,11 +207,6 @@ def save_fss_data(quarter: str, data_source: str, data_list: list[dict]):
                 quarter, data_source, metrics_json, now, now
             ))
 
-            # fss_companies 메타데이터 upsert
-            conn.execute("""
-                INSERT OR IGNORE INTO fss_companies (company_code, company_name)
-                VALUES (?, ?)
-            """, (item["company_code"], item["company_name"]))
 
 
 def get_fss_data(quarter: str, data_source: str) -> list[dict]:
@@ -248,6 +236,25 @@ def get_available_quarters(data_source: str) -> list[str]:
             ORDER BY quarter DESC
         """, (data_source,)).fetchall()
     return [r["quarter"] for r in rows]
+
+
+def get_company_history(company_name: str, data_source: str, n: int = 4) -> list[dict]:
+    """특정 회사의 최근 n분기 데이터를 오래된 순으로 반환"""
+    with get_conn() as conn:
+        rows = conn.execute("""
+            SELECT quarter, metrics
+            FROM fss_securities_data
+            WHERE company_name = ? AND data_source = ?
+            ORDER BY quarter DESC
+            LIMIT ?
+        """, (company_name, data_source, n)).fetchall()
+    result = []
+    for row in reversed(rows):
+        result.append({
+            "quarter": row["quarter"],
+            "metrics": json.loads(row["metrics"]),
+        })
+    return result
 
 
 def log_fss_update(data_source: str, quarter: str, status: str,

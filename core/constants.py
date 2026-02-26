@@ -23,4 +23,5 @@ NCR_METRIC_LABELS = {
     "required_equity": "필요유지자기자본(억원)",
     "operating_net_capital": "영업용순자본(억원)",
     "old_ncr": "구NCR(%)",
+    "net_income_q": "당기순이익 분기(억원)",
 }

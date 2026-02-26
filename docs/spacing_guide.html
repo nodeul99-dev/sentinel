@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>Sentinel.DS — 레이아웃 간격 가이드</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, 'Segoe UI', sans-serif;
+    background: #f8fafc;
+    color: #1e293b;
+    padding: 48px 40px;
+    max-width: 900px;
+    margin: 0 auto;
+  }
+  h1 {
+    font-size: 1.6rem;
+    font-weight: 700;
+    color: #0f172a;
+    margin-bottom: 4px;
+  }
+  .subtitle {
+    font-size: 0.88rem;
+    color: #64748b;
+    margin-bottom: 40px;
+  }
+  h2 {
+    font-size: 1.05rem;
+    font-weight: 700;
+    color: #14532d;
+    margin: 36px 0 12px;
+    padding-bottom: 6px;
+    border-bottom: 2px solid #a3e635;
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.875rem;
+    background: #fff;
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 1px 6px rgba(0,0,0,.07);
+  }
+  thead tr {
+    background: #0f172a;
+    color: #fff;
+  }
+  thead th {
+    padding: 11px 16px;
+    text-align: left;
+    font-weight: 600;
+    font-size: 0.82rem;
+    letter-spacing: .03em;
+  }
+  tbody tr:nth-child(even) { background: #f8fafc; }
+  tbody tr:hover { background: #f0fdf4; }
+  td {
+    padding: 10px 16px;
+    border-bottom: 1px solid #f1f5f9;
+    vertical-align: middle;
+  }
+  td:last-child { border-bottom: none; }
+  .val {
+    font-family: 'Consolas', 'Menlo', monospace;
+    font-weight: 700;
+    color: #14532d;
+    background: #f0fdf4;
+    padding: 2px 7px;
+    border-radius: 4px;
+    white-space: nowrap;
+  }
+  .loc {
+    font-family: 'Consolas', 'Menlo', monospace;
+    font-size: 0.78rem;
+    color: #64748b;
+    white-space: nowrap;
+  }
+  .diagram {
+    background: #0f172a;
+    color: #a3e635;
+    font-family: 'Consolas', 'Menlo', monospace;
+    font-size: 0.83rem;
+    line-height: 1.7;
+    padding: 20px 24px;
+    border-radius: 8px;
+    margin: 12px 0 0;
+    white-space: pre;
+    overflow-x: auto;
+  }
+  .diagram .dim { color: #475569; }
+  .diagram .hi  { color: #facc15; }
+  .tag {
+    display: inline-block;
+    font-size: 0.72rem;
+    font-weight: 600;
+    padding: 1px 6px;
+    border-radius: 10px;
+    margin-left: 6px;
+    vertical-align: middle;
+  }
+  .tag-px  { background: #dbeafe; color: #1d4ed8; }
+  .tag-rem { background: #ede9fe; color: #6d28d9; }
+  .tag-calc{ background: #fef3c7; color: #92400e; }
+</style>
+</head>
+<body>
+
+<h1>Sentinel.DS — 레이아웃 간격 가이드</h1>
+<div class="subtitle">미세조정 시 참고용 · 수정 위치: app.py / views/finance.py</div>
+
+<!-- 다이어그램 -->
+<h2>전체 구조 다이어그램</h2>
+<div class="diagram"><span class="dim">┌─────────────────────────────────────────────────────────────────┐  </span><span class="hi">top:8px  left:8px  right:8px</span>
+<span class="dim">│</span>                    상단바  <span class="hi">height:68px</span>  /  padding: 0 <span class="hi">28px</span>              <span class="dim">│</span>
+<span class="dim">└─────────────────────────────────────────────────────────────────┘</span>
+         ↕ <span class="hi">8px</span>  (top: 68 + 8 + 8 = <span class="hi">84px</span>)
+
+<span class="dim">┌──────────┐</span> ←<span class="hi"> 68px</span>(축소) / <span class="hi">154px</span>(확장)   <span class="dim">┌────────────────────────────┐</span>
+<span class="dim">│</span> 사이드바  <span class="dim">│</span>  padding: 0 <span class="hi">8px</span>                 <span class="dim">│</span>  col_main  <span class="dim">│</span>  col_side    <span class="dim">│</span>
+<span class="dim">│</span>          <span class="dim">│</span>  ↔  gap: <span class="hi">16px</span> (84-68)           <span class="dim">│</span>   padding: <span class="hi">22px 26px</span>       <span class="dim">│</span>
+<span class="dim">└──────────┘</span>                                 <span class="dim">│</span>   gap(cols): <span class="hi">8px</span>           <span class="dim">│</span>
+                                             <span class="dim">└────────────────────────────┘</span></div>
+
+<!-- 패널 간격 -->
+<h2>패널 간격</h2>
+<table>
+  <thead><tr><th>위치</th><th>CSS 속성</th><th>현재값</th><th>파일 위치</th></tr></thead>
+  <tbody>
+    <tr><td>col_main ↔ col_side 사이</td><td>gap</td><td><span class="val">8px</span></td><td><span class="loc">app.py:107</span></td></tr>
+    <tr><td>화면 위쪽 여백 (topbar 아래)</td><td>top</td><td><span class="val">84px</span> <span class="tag tag-calc">= 68+8+8</span></td><td><span class="loc">app.py:56</span></td></tr>
+    <tr><td>화면 우측 여백</td><td>right</td><td><span class="val">8px</span></td><td><span class="loc">app.py:58</span></td></tr>
+    <tr><td>화면 하단 여백</td><td>bottom</td><td><span class="val">0</span></td><td><span class="loc">app.py:59</span></td></tr>
+  </tbody>
+</table>
+
+<!-- 패널 내부 -->
+<h2>패널 내부 여백 (흰 박스)</h2>
+<table>
+  <thead><tr><th>위치</th><th>CSS 속성</th><th>현재값</th><th>파일 위치</th></tr></thead>
+  <tbody>
+    <tr><td>패널 안쪽 전체</td><td>padding</td><td><span class="val">22px 26px</span> <span class="tag tag-px">상하 / 좌우</span></td><td><span class="loc">app.py:95</span></td></tr>
+    <tr><td>패널 내 중첩 컬럼</td><td>padding</td><td><span class="val">0 4px</span></td><td><span class="loc">app.py:101</span></td></tr>
+    <tr><td>패널 모서리 둥글기</td><td>border-radius</td><td><span class="val">7px</span></td><td><span class="loc">app.py:93</span></td></tr>
+    <tr><td>패널 사이 여백 (stColumns gap)</td><td>gap</td><td><span class="val">8px</span></td><td><span class="loc">app.py:107</span></td></tr>
+  </tbody>
+</table>
+
+<!-- 텍스트 간격 -->
+<h2>텍스트 / 섹션 간격</h2>
+<table>
+  <thead><tr><th>위치</th><th>CSS 속성</th><th>현재값</th><th>파일 위치</th></tr></thead>
+  <tbody>
+    <tr><td>대시보드 제목 아래</td><td>margin-bottom</td><td><span class="val">14px</span></td><td><span class="loc">finance.py:55</span></td></tr>
+    <tr><td>추이·데이터관리 제목 아래</td><td>margin-bottom</td><td><span class="val">12px</span></td><td><span class="loc">finance.py:141</span></td></tr>
+    <tr><td>회사 상세 제목 아래</td><td>margin-bottom</td><td><span class="val">6px</span></td><td><span class="loc">finance.py:241</span></td></tr>
+    <tr><td>구분선 색상</td><td>border-color</td><td><span class="val">#c8dfc9</span></td><td><span class="loc">app.py:185</span></td></tr>
+  </tbody>
+</table>
+
+<!-- 상단바 -->
+<h2>상단바</h2>
+<table>
+  <thead><tr><th>항목</th><th>속성</th><th>현재값</th><th>파일 위치</th></tr></thead>
+  <tbody>
+    <tr><td>높이</td><td>height</td><td><span class="val">68px</span></td><td><span class="loc">app.py:312</span></td></tr>
+    <tr><td>화면 끝 여백 (상/좌/우)</td><td>top / left / right</td><td><span class="val">8px</span></td><td><span class="loc">app.py:313</span></td></tr>
+    <tr><td>내부 좌우 패딩</td><td>padding</td><td><span class="val">0 28px</span></td><td><span class="loc">app.py:311</span></td></tr>
+    <tr><td>메뉴 pill 패딩</td><td>padding</td><td><span class="val">5px 16px</span></td><td><span class="loc">app.py:291</span></td></tr>
+    <tr><td>메뉴 pill 사이 간격</td><td>gap</td><td><span class="val">4px</span></td><td><span class="loc">app.py:323</span></td></tr>
+  </tbody>
+</table>
+
+<!-- 사이드바 -->
+<h2>사이드바</h2>
+<table>
+  <thead><tr><th>항목</th><th>속성</th><th>현재값</th><th>파일 위치</th></tr></thead>
+  <tbody>
+    <tr><td>축소 너비</td><td>width</td><td><span class="val">68px</span></td><td><span class="loc">app.py:34</span></td></tr>
+    <tr><td>확장 너비</td><td>width</td><td><span class="val">154px</span></td><td><span class="loc">app.py:34</span></td></tr>
+    <tr><td>화면 좌측 여백</td><td>left</td><td><span class="val">8px</span></td><td><span class="loc">app.py:261</span></td></tr>
+    <tr><td>내부 좌우 패딩</td><td>padding</td><td><span class="val">0 8px</span></td><td><span class="loc">app.py:271</span></td></tr>
+    <tr><td>메뉴 아이템 패딩 (확장)</td><td>padding</td><td><span class="val">18px 10px</span></td><td><span class="loc">app.py:235</span></td></tr>
+    <tr><td>메뉴 아이템 패딩 (축소)</td><td>padding</td><td><span class="val">20px 0</span></td><td><span class="loc">app.py:243</span></td></tr>
+    <tr><td>메뉴 아이콘 간격</td><td>gap</td><td><span class="val">10px</span></td><td><span class="loc">app.py:235</span></td></tr>
+  </tbody>
+</table>
+
+<!-- AgGrid 테이블 -->
+<h2>AgGrid 테이블 (대시보드)</h2>
+<table>
+  <thead><tr><th>항목</th><th>속성</th><th>현재값</th><th>파일 위치</th></tr></thead>
+  <tbody>
+    <tr><td>행 높이</td><td>rowHeight</td><td><span class="val">34px</span></td><td><span class="loc">finance.py:117</span></td></tr>
+    <tr><td>헤더 높이</td><td>headerHeight</td><td><span class="val">40px</span></td><td><span class="loc">finance.py:117</span></td></tr>
+    <tr><td>테이블 전체 높이 계산식</td><td>height</td><td><span class="val">40 + rows×34 + 16</span> <span class="tag tag-calc">하단 여유 16px</span></td><td><span class="loc">finance.py:125</span></td></tr>
+  </tbody>
+</table>
+
+<!-- 보조패널 스파크라인 -->
+<h2>보조패널 스파크라인 그래프</h2>
+<table>
+  <thead><tr><th>항목</th><th>속성</th><th>현재값</th><th>파일 위치</th></tr></thead>
+  <tbody>
+    <tr><td>SVG 가로</td><td>W</td><td><span class="val">120px</span></td><td><span class="loc">finance.py:322</span></td></tr>
+    <tr><td>SVG 세로</td><td>H</td><td><span class="val">60px</span></td><td><span class="loc">finance.py:322</span></td></tr>
+    <tr><td>그래프 우측 여백</td><td>padding-right (.mr)</td><td><span class="val">32px</span></td><td><span class="loc">finance.py:296</span></td></tr>
+    <tr><td>카드 상하 패딩 (.mc)</td><td>padding</td><td><span class="val">8px 0</span></td><td><span class="loc">finance.py:291</span></td></tr>
+    <tr><td>SVG 내부 좌우 여백</td><td>LP / RP</td><td><span class="val">4px / 4px</span></td><td><span class="loc">finance.py:322</span></td></tr>
+    <tr><td>SVG 내부 상하 여백</td><td>TP / BP</td><td><span class="val">16px / 14px</span></td><td><span class="loc">finance.py:322</span></td></tr>
+    <tr><td>보조패널 전체 높이</td><td>height (components.html)</td><td><span class="val">620px</span></td><td><span class="loc">finance.py:279</span></td></tr>
+  </tbody>
+</table>
+
+</body>
+</html>
