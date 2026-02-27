@@ -22,6 +22,7 @@ st.set_page_config(
 # ── DB 초기화 ─────────────────────────────────────────────────────────────────
 db.init_db()
 db.init_fss_tables()
+db.init_pnl_tables()
 
 SB_W       = "70px"
 SB_TOTAL_W = "86px"  # left:8px + width:70px + gap:8px
@@ -63,21 +64,31 @@ section[data-testid="stMain"]::-webkit-scrollbar-thumb {{
     border-radius: 4px;
 }}
 
-/* Streamlit 내부 여백 초기화 */
-section[data-testid="stMain"] > div:first-child,
-section[data-testid="stMain"] > div:first-child > div:first-child {{
+/* Streamlit 내부 여백 초기화 + 스크롤 보장 */
+section[data-testid="stMain"] > div,
+section[data-testid="stMain"] > div > div {{
     margin: 0 !important;
+    padding: 0 !important;
+    height: auto !important;
+    overflow: visible !important;
+}}
+div[data-testid="stMainBlockContainer"] {{
+    height: auto !important;
+    overflow: visible !important;
     padding: 0 !important;
 }}
 .block-container {{
-    padding: 0 0 2rem 0 !important;
+    padding: 0 0 4rem 0 !important;
     margin: 0 !important;
     max-width: 100% !important;
     background: transparent !important;
+    height: auto !important;
+    overflow: visible !important;
 }}
 div[data-testid="stVerticalBlock"] {{
     padding: 0 !important;
     gap: 0 !important;
+    height: auto !important;
 }}
 
 /* ── 메인·보조 패널 컬럼 (흰 박스) ── */
@@ -215,7 +226,8 @@ _SIDEBAR_MENUS = {
         ("risk", _svg_risk, "리스크현황", ""),
     ],
     "pnl": [
-        ("pnl", _svg_pnl, "손익집계", ""),
+        ("pnl",   _svg_pnl,  "손익집계", ""),
+        ("input", _svg_gear, "입력관리", "subpage=input"),
     ],
     "stress": [
         ("stress", _svg_stress, "스트레스테스트", ""),

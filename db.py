@@ -1,6 +1,7 @@
 """
-Sentinel.DS 통합 DB 모듈 (규정검색 + FSS 재무건전성)
+Sentinel.DS 통합 DB 모듈 (규정검색 + FSS 재무건전성 + 손익집계)
 """
+import hashlib
 import json
 import sqlite3
 import os
@@ -276,4 +277,161 @@ def get_fss_update_log(limit: int = 20) -> list[dict]:
             ORDER BY updated_at DESC
             LIMIT ?
         """, (limit,)).fetchall()
+    return [dict(r) for r in rows]
+
+
+# ── 손익집계 ─────────────────────────────────────────────────────────────────
+
+_PNL_DEFAULT_DIVISIONS = [
+    # (division, department, sort_order)
+    ("S&T",       "에쿼티마켓",   1),
+    ("S&T",       "자본시장",     2),
+    ("S&T",       "FI금융",       3),
+    ("S&T",       "채권금융",     4),
+    ("주식파생운용", "주식운용",   11),
+    ("주식파생운용", "시장조성",   12),
+    ("주식파생운용", "파생운용",   13),
+    ("글로벌마켓",  "글로벌대체",  21),
+    ("글로벌마켓",  "IB",          22),
+    ("글로벌마켓",  "프로젝트금융", 23),
+    ("대체투자",    "부동산금융",  31),
+    ("대체투자",    "개발금융",    32),
+    ("대체투자",    "자산관리",    33),
+    ("헤지펀드",    "헤지펀드",    41),
+    ("기타",        "기타",        51),
+    ("본사공통",    "본사공통",    61),
+]
+
+_DEFAULT_PIN = "0000"
+
+
+def _hash_pin(pin: str) -> str:
+    return hashlib.sha256(pin.encode()).hexdigest()
+
+
+def init_pnl_tables():
+    """손익집계 테이블 초기화 및 기본 부서 데이터 시드"""
+    with get_conn() as conn:
+        conn.executescript("""
+            CREATE TABLE IF NOT EXISTS pnl_divisions (
+                id          INTEGER PRIMARY KEY AUTOINCREMENT,
+                division    TEXT NOT NULL,
+                department  TEXT NOT NULL,
+                pin_hash    TEXT NOT NULL,
+                sort_order  INTEGER DEFAULT 0,
+                UNIQUE(division, department)
+            );
+
+            CREATE TABLE IF NOT EXISTS pnl_entries (
+                id          INTEGER PRIMARY KEY AUTOINCREMENT,
+                trade_date  TEXT NOT NULL,
+                division    TEXT NOT NULL,
+                department  TEXT NOT NULL,
+                pnl_daily   REAL NOT NULL,
+                entered_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                UNIQUE(trade_date, division, department)
+            );
+        """)
+        count = conn.execute("SELECT COUNT(*) FROM pnl_divisions").fetchone()[0]
+        if count == 0:
+            default_hash = _hash_pin(_DEFAULT_PIN)
+            conn.executemany(
+                "INSERT OR IGNORE INTO pnl_divisions (division, department, pin_hash, sort_order) VALUES (?, ?, ?, ?)",
+                [(div, dept, default_hash, order) for div, dept, order in _PNL_DEFAULT_DIVISIONS],
+            )
+
+
+def get_pnl_divisions() -> list[dict]:
+    with get_conn() as conn:
+        rows = conn.execute(
+            "SELECT * FROM pnl_divisions ORDER BY sort_order"
+        ).fetchall()
+    return [dict(r) for r in rows]
+
+
+def verify_pnl_pin(division: str, department: str, pin: str) -> bool:
+    with get_conn() as conn:
+        row = conn.execute(
+            "SELECT pin_hash FROM pnl_divisions WHERE division = ? AND department = ?",
+            (division, department),
+        ).fetchone()
+    if row is None:
+        return False
+    return row["pin_hash"] == _hash_pin(pin)
+
+
+def set_pnl_pin(division: str, department: str, new_pin: str) -> bool:
+    with get_conn() as conn:
+        result = conn.execute(
+            "UPDATE pnl_divisions SET pin_hash = ? WHERE division = ? AND department = ?",
+            (_hash_pin(new_pin), division, department),
+        )
+    return result.rowcount > 0
+
+
+def upsert_pnl_entry(trade_date: str, division: str, department: str, pnl_daily: float):
+    now = datetime.now().isoformat()
+    with get_conn() as conn:
+        conn.execute("""
+            INSERT INTO pnl_entries (trade_date, division, department, pnl_daily, entered_at, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?)
+            ON CONFLICT(trade_date, division, department)
+            DO UPDATE SET pnl_daily = excluded.pnl_daily, updated_at = excluded.updated_at
+        """, (trade_date, division, department, pnl_daily, now, now))
+
+
+def get_pnl_entries_by_date(trade_date: str) -> dict:
+    """특정 날짜의 손익 반환 → {(division, department): pnl}"""
+    with get_conn() as conn:
+        rows = conn.execute(
+            "SELECT division, department, pnl_daily FROM pnl_entries WHERE trade_date = ?",
+            (trade_date,),
+        ).fetchall()
+    return {(r["division"], r["department"]): r["pnl_daily"] for r in rows}
+
+
+def get_pnl_entries_sum(start_date: str, end_date: str) -> dict:
+    """기간 합계 → {(division, department): sum}"""
+    with get_conn() as conn:
+        rows = conn.execute("""
+            SELECT division, department, SUM(pnl_daily) as pnl_sum
+            FROM pnl_entries
+            WHERE trade_date >= ? AND trade_date <= ?
+            GROUP BY division, department
+        """, (start_date, end_date)).fetchall()
+    return {(r["division"], r["department"]): r["pnl_sum"] for r in rows}
+
+
+def get_pnl_latest_date() -> str | None:
+    with get_conn() as conn:
+        row = conn.execute(
+            "SELECT MAX(trade_date) as latest FROM pnl_entries"
+        ).fetchone()
+    return row["latest"] if row and row["latest"] else None
+
+
+def get_pnl_trend(division: str, department: str, start_date: str, end_date: str) -> list[dict]:
+    """특정 본부 일별 손익 추이"""
+    with get_conn() as conn:
+        rows = conn.execute("""
+            SELECT trade_date, pnl_daily
+            FROM pnl_entries
+            WHERE division = ? AND department = ?
+              AND trade_date >= ? AND trade_date <= ?
+            ORDER BY trade_date
+        """, (division, department, start_date, end_date)).fetchall()
+    return [dict(r) for r in rows]
+
+
+def get_pnl_division_trend(division: str, start_date: str, end_date: str) -> list[dict]:
+    """부문 전체 일별 합계 추이 (하위 본부 합산)"""
+    with get_conn() as conn:
+        rows = conn.execute("""
+            SELECT trade_date, SUM(pnl_daily) as pnl_daily
+            FROM pnl_entries
+            WHERE division = ? AND trade_date >= ? AND trade_date <= ?
+            GROUP BY trade_date
+            ORDER BY trade_date
+        """, (division, start_date, end_date)).fetchall()
     return [dict(r) for r in rows]

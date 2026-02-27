@@ -6,3 +6,5 @@ plotly
 python-dotenv
 urllib3
 streamlit-aggrid
+pandas
+openpyxl

@@ -18,6 +18,9 @@ env/
 # Streamlit 캐시
 .streamlit/
 
+# Claude Code 설정 (로컬 전용)
+.claude/
+
 # IDE
 .vscode/
 .idea/
