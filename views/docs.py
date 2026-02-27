@@ -12,20 +12,24 @@ from api.law_api import MANAGED_LAWS, crawl_single_law
 # 업로드 가능 분류: 법령·감독규정은 크롤링으로만 등록
 UPLOAD_CATEGORIES = ["모범규준", "사규"]
 
-ALL_CATEGORIES = ["법령", "모범규준", "사규", "감독규정"]
-
 CATEGORY_COLORS = {
-    "법령":    "#15803d",
-    "모범규준": "#047857",
-    "사규":    "#0f766e",
-    "감독규정": "#4d7c0f",
+    "법령":    "#4A7C59",
+    "모범규준": "#3A5F8B",
+    "사규":    "#6A6A6A",
+    "감독규정": "#B87333",
 }
 
 
 def render():
     st.markdown(
-        '<p style="font-size:1.13rem;font-weight:600;color:#14532d;margin:0 0 14px;">'
-        '문서 관리</p>',
+        '<p style="font-size:1.13rem;font-weight:600;color:#1A1A1A;margin:0 0 2px;">'
+        '문서 관리</p>'
+        '<p style="font-size:0.75rem;color:#5C5C5C;margin:0 0 20px;">'
+        'PDF 업로드 또는 법제처 API를 통해 규정 문서를 등록·관리합니다.</p>',
+        unsafe_allow_html=True,
+    )
+    st.markdown(
+        '<hr style="border:0;border-top:1px solid #e2e8f0;margin:0 0 32px;">',
         unsafe_allow_html=True,
     )
 

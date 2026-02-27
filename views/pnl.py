@@ -1,5 +1,5 @@
 """
-위험관리실무위원회 페이지 (placeholder)
+손익집계 페이지 (placeholder)
 """
 import streamlit as st
 
@@ -34,9 +34,9 @@ def render(subpage: str = None):
     with col_main:
         st.markdown(
             '<p style="font-size:1.13rem;font-weight:600;color:#1A1A1A;margin:0 0 2px;">'
-            '위험관리실무위원회</p>'
+            '손익집계</p>'
             '<p style="font-size:0.75rem;color:#5C5C5C;margin:0 0 20px;">'
-            '위원회 일정·진행상황·결과 관리입니다.</p>',
+            '프런트 부서별 전일자 손익 입력 및 집계 대시보드입니다.</p>',
             unsafe_allow_html=True,
         )
         st.markdown(
@@ -45,9 +45,9 @@ def render(subpage: str = None):
         )
         st.markdown(
             '<div style="text-align:center;padding:60px 20px;color:#94a3b8;">'
-            '<div style="font-size:2.5rem;margin-bottom:16px;">📋</div>'
+            '<div style="font-size:2.5rem;margin-bottom:16px;">💰</div>'
             '<div style="font-size:0.9rem;line-height:1.8;color:#64748b;">'
-            '위원회 일정 등록·진행상황 추적·결과 체크 기능이 제공될 예정입니다.'
+            '부서별 손익 입력·집계·일별 추이 기능이 제공될 예정입니다.'
             '</div>'
             '</div>',
             unsafe_allow_html=True,
@@ -56,7 +56,7 @@ def render(subpage: str = None):
     with col_side:
         st.markdown(
             '<p style="font-size:1.13rem;font-weight:600;color:#1A1A1A;margin:0 0 2px;">'
-            '안건 상세</p>'
+            '손익 요약</p>'
             '<p style="font-size:0.75rem;margin:0 0 20px;">&nbsp;</p>',
             unsafe_allow_html=True,
         )
@@ -67,7 +67,7 @@ def render(subpage: str = None):
         st.markdown(
             '<div style="text-align:center;padding:40px 12px;color:#94a3b8;">'
             '<div style="font-size:0.83rem;line-height:1.7;">'
-            '안건을 선택하면<br>상세 내용이 표시됩니다.'
+            '부서를 선택하면<br>손익 상세가 표시됩니다.'
             '</div>'
             '</div>',
             unsafe_allow_html=True,

@@ -30,9 +30,7 @@ def _generate_quarters(start_year: int = 2016) -> list[str]:
 
 
 def render(subpage: str = None):
-    if subpage == "trends":
-        _render_trends()
-    elif subpage == "data":
+    if subpage == "data":
         _render_data_management()
     else:
         _render_dashboard()
@@ -49,8 +47,14 @@ def _render_dashboard():
 
     with col_main:
         st.markdown(
-            '<p style="font-size:1.13rem;font-weight:600;color:#14532d;margin:0 0 14px;">'
-            f'국내 증권사 건전성지표 <span style="font-size:0.85rem;font-weight:400;color:#888;">({dashboard_quarter} 기준 · 단위: 억원, 연결재무제표)</span></p>',
+            '<p style="font-size:1.13rem;font-weight:600;color:#1A1A1A;margin:0 0 2px;">'
+            '국내 증권사 건전성지표</p>'
+            f'<p style="font-size:0.75rem;color:#5C5C5C;margin:0 0 20px;">'
+            f'{dashboard_quarter} 기준 &nbsp;·&nbsp; 단위: 억원, 연결재무제표</p>',
+            unsafe_allow_html=True,
+        )
+        st.markdown(
+            '<hr style="border:0;border-top:1px solid #e2e8f0;margin:0 0 32px;">',
             unsafe_allow_html=True,
         )
 
@@ -96,7 +100,7 @@ def _render_ranking_table(data: list[dict]):
             params.data['회사명'].indexOf('DS투자') >= 0 ||
             params.data['회사명'].indexOf('디에스투자') >= 0
         )) {
-            return {'color': '#dc2626', 'fontWeight': 'bold'};
+            return {'color': '#8B3A3A', 'fontWeight': 'bold'};
         }
     }
     """)
@@ -111,7 +115,15 @@ def _render_ranking_table(data: list[dict]):
     gb.configure_column("NCR(%)",     flex=1,    minWidth=70, valueFormatter=pct_fmt, type=["numericColumn"])
     gb.configure_column("구NCR(%)",   flex=1,    minWidth=70, valueFormatter=pct_fmt, type=["numericColumn"])
     gb.configure_column("총위험액",   flex=1,    minWidth=80, valueFormatter=num_fmt, type=["numericColumn"])
-    gb.configure_grid_options(getRowStyle=ds_row_style, rowHeight=34, headerHeight=40)
+    on_grid_size_changed = JsCode(
+        "function(params) { params.api.sizeColumnsToFit(); }"
+    )
+    gb.configure_grid_options(
+        getRowStyle=ds_row_style,
+        rowHeight=34,
+        headerHeight=40,
+        onGridSizeChanged=on_grid_size_changed,
+    )
 
     grid_options = gb.build()
 
@@ -131,90 +143,81 @@ def _render_ranking_table(data: list[dict]):
         st.session_state["selected_company"] = name
 
 
-# ── 추이 분석 페이지 ─────────────────────────────────────────────────────────
-
-def _render_trends():
-    st.markdown(
-        '<p style="font-size:1.13rem;font-weight:600;color:#14532d;margin:0 0 12px;">'
-        '추이 분석</p>',
-        unsafe_allow_html=True,
-    )
-
-    available = db.get_available_quarters("ncr_data")
-    if len(available) < 2:
-        st.info("추이 분석은 2개 이상의 분기 데이터가 필요합니다. 더 많은 분기 데이터를 수집해주세요.")
-        return
-
-    # 분기별 평균 NCR 계산
-    quarter_avg = {}
-    for q in sorted(available):
-        data = db.get_fss_data(q, "ncr_data")
-        ncr_vals = [d["metrics"].get("ncr", 0) for d in data if d["metrics"].get("ncr", 0) > 0]
-        if ncr_vals:
-            quarter_avg[q] = round(sum(ncr_vals) / len(ncr_vals), 1)
-
-    if quarter_avg:
-        import plotly.graph_objects as go
-        fig = go.Figure()
-        fig.add_trace(go.Scatter(
-            x=list(quarter_avg.keys()),
-            y=list(quarter_avg.values()),
-            mode="lines+markers",
-            name="평균 NCR",
-            line=dict(color="#a3e635", width=2),
-            marker=dict(size=8),
-        ))
-        fig.add_hline(y=150, line_dash="dash", line_color="#dc2626",
-                      annotation_text="150% 기준선")
-        fig.update_layout(
-            title="분기별 평균 NCR 추이",
-            xaxis_title="분기",
-            yaxis_title="NCR (%)",
-            height=350,
-            margin=dict(l=0, r=0, t=40, b=0),
-        )
-        st.plotly_chart(fig, use_container_width=True)
-
-
 # ── 데이터 관리 페이지 ────────────────────────────────────────────────────────
 
 def _render_data_management():
     st.markdown(
-        '<p style="font-size:1.13rem;font-weight:600;color:#14532d;margin:0 0 12px;">'
-        '데이터 관리</p>',
+        '<p style="font-size:1.13rem;font-weight:600;color:#1A1A1A;margin:0 0 2px;">'
+        '데이터 관리</p>'
+        '<p style="font-size:0.75rem;color:#5C5C5C;margin:0 0 20px;">'
+        '금감원 FISIS API로 건전성 지표를 수집하고 관리합니다.</p>',
+        unsafe_allow_html=True,
+    )
+    st.markdown(
+        '<hr style="border:0;border-top:1px solid #e2e8f0;margin:0 0 32px;">',
         unsafe_allow_html=True,
     )
 
-    # ── 최신 데이터 수집 ───────────────────────────────────────────────────────
-    st.markdown("#### 최신 데이터 수집")
     current_q = _current_quarter()
-    col1, col2 = st.columns([3, 1])
+    available = set(db.get_available_quarters("ncr_data"))
+    missing = [q for q in _generate_quarters(2016) if q not in available]
+
+    # ── 최신 데이터 수집 ─────────────────────────────────────────────────────
+    st.markdown(
+        '<p style="font-size:0.8rem;font-weight:600;color:#475569;letter-spacing:0.05em;'
+        'text-transform:uppercase;margin-bottom:10px;">최신 데이터 수집</p>',
+        unsafe_allow_html=True,
+    )
+    col1, col2 = st.columns([4, 1])
     with col1:
-        st.caption(f"현재 분기: **{current_q}**  ·  수집 후 대시보드에 반영됩니다.")
+        st.markdown(
+            f'<p style="font-size:0.85rem;color:#64748b;padding-top:6px;">'
+            f'현재 분기: <b style="color:#1A1A1A;">{current_q}</b>'
+            f' &nbsp;·&nbsp; 수집 후 대시보드에 자동 반영됩니다.</p>',
+            unsafe_allow_html=True,
+        )
     with col2:
         if st.button("수집 시작", type="primary", use_container_width=True):
             _update_fss_data(current_q, "ncr_data")
 
-    st.divider()
-
-    available = set(db.get_available_quarters("ncr_data"))
-    missing = [q for q in _generate_quarters(2016) if q not in available]
-
+    # ── 강제 재수집 ──────────────────────────────────────────────────────────
     if available:
-        st.caption("※ 수집 로직 변경 후 기존 데이터를 덮어써야 할 경우 아래 버튼을 사용하세요.")
-        if st.button("강제 재수집 (최근 1년, 기존 데이터 덮어쓰기)", type="secondary"):
+        st.markdown(
+            '<hr style="border:0;border-top:1px solid #e2e8f0;margin:16px 0;">',
+            unsafe_allow_html=True,
+        )
+        st.markdown(
+            '<p style="font-size:0.8rem;font-weight:600;color:#475569;letter-spacing:0.05em;'
+            'text-transform:uppercase;margin-bottom:10px;">강제 재수집</p>',
+            unsafe_allow_html=True,
+        )
+        st.markdown(
+            '<p style="font-size:0.82rem;color:#94a3b8;margin-bottom:10px;">'
+            '수집 로직 변경 후 기존 데이터를 덮어써야 할 경우 사용하세요. (최근 1년 분기)</p>',
+            unsafe_allow_html=True,
+        )
+        if st.button("강제 재수집 (기존 데이터 덮어쓰기)", type="secondary"):
             now = datetime.now()
             one_year_ago = f"{now.year - 1}Q{(now.month - 1) // 3 + 1}"
             force_quarters = sorted(q for q in set(available) | set(missing) if q >= one_year_ago)
             _collect_historical(force_quarters)
 
-    st.divider()
-
-    # ── 수집 로그 ──────────────────────────────────────────────────────────────
-    st.markdown("#### 수집 로그")
+    # ── 수집 로그 ────────────────────────────────────────────────────────────
+    st.markdown(
+        '<hr style="border:0;border-top:1px solid #e2e8f0;margin:16px 0;">',
+        unsafe_allow_html=True,
+    )
+    st.markdown(
+        '<p style="font-size:0.8rem;font-weight:600;color:#475569;letter-spacing:0.05em;'
+        'text-transform:uppercase;margin-bottom:10px;">수집 로그</p>',
+        unsafe_allow_html=True,
+    )
     logs = db.get_fss_update_log(limit=20)
     if not logs:
-        st.caption("수집 이력이 없습니다.")
+        st.markdown(
+            '<p style="font-size:0.83rem;color:#94a3b8;">수집 이력이 없습니다.</p>',
+            unsafe_allow_html=True,
+        )
     else:
         rows = []
         for log in logs:
@@ -234,7 +237,12 @@ def _render_company_detail():
     selected = st.session_state.get("selected_company", "")
 
     st.markdown(
-        '<p style="font-size:1.13rem;font-weight:600;color:#14532d;margin:0 0 6px;">회사 상세</p>',
+        '<p style="font-size:1.13rem;font-weight:600;color:#1A1A1A;margin:0 0 2px;">회사 상세</p>'
+        '<p style="font-size:0.75rem;color:#5C5C5C;margin:0 0 20px;">최근 4개 분기 추이</p>',
+        unsafe_allow_html=True,
+    )
+    st.markdown(
+        '<hr style="border:0;border-top:1px solid #e2e8f0;margin:0 0 32px;">',
         unsafe_allow_html=True,
     )
 
@@ -254,7 +262,7 @@ def _render_company_detail():
     display_history = history
 
     is_ds = "DS투자" in selected or "디에스투자" in selected
-    name_color = "#dc2626" if is_ds else "#0f172a"
+    name_color = "#8B3A3A" if is_ds else "#1A1A1A"
 
     js_data = [
         {
@@ -285,11 +293,10 @@ body{{font-family:-apple-system,'Segoe UI',sans-serif;background:transparent;col
 .mc:last-child{{border-bottom:none}}
 .ml{{flex:0 0 52%;min-width:0}}
 .mlb{{font-size:.87rem;color:#94a3b8;margin-bottom:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}}
-.mlv{{font-size:1.14rem;font-weight:700;color:#14532d;white-space:nowrap}}
+.mlv{{font-size:1.14rem;font-weight:700;color:#1A1A1A;white-space:nowrap}}
 .mr{{flex:0 0 48%;display:flex;justify-content:flex-end;align-items:center;padding-right:32px}}
 </style></head><body>
 <div class="cname">{esc}</div>
-<div class="csub">최근 {n_q}개 분기 추이</div>
 <div id="cards"></div>
 <script>
 var DATA={data_json};
@@ -333,7 +340,7 @@ function makeSpark(vals,pct){{
   if(nnc>1){{
     var pl=document.createElementNS('http://www.w3.org/2000/svg','polyline');
     pl.setAttribute('points',ptStr.trim());
-    pl.setAttribute('fill','none');pl.setAttribute('stroke','#a3e635');
+    pl.setAttribute('fill','none');pl.setAttribute('stroke','#C8A96E');
     pl.setAttribute('stroke-width','1.5');pl.setAttribute('stroke-linejoin','round');
     svg.appendChild(pl);
   }}
@@ -355,7 +362,7 @@ function makeSpark(vals,pct){{
     var anchor=xs[i]>W*0.65?'end':(xs[i]<W*0.35?'start':'middle');
     vl.setAttribute('text-anchor',anchor);
     vl.setAttribute('font-size','10');
-    vl.setAttribute('fill',isLatest?'#14532d':'#475569');
+    vl.setAttribute('fill',isLatest?'#1A1A1A':'#5A5A5A');
     vl.setAttribute('font-weight',isLatest?'700':'400');
     vl.setAttribute('pointer-events','none');
     vl.textContent=fmtSpark(d.v,pct);
@@ -364,7 +371,7 @@ function makeSpark(vals,pct){{
     var c=document.createElementNS('http://www.w3.org/2000/svg','circle');
     c.setAttribute('cx',xs[i]);c.setAttribute('cy',ys[i]);
     c.setAttribute('r',isLatest?5:4);
-    c.setAttribute('fill',isLatest?'#4d7c0f':'#a3e635');
+    c.setAttribute('fill',isLatest?'#A8894E':'#C8A96E');
     c.setAttribute('stroke','#ffffff');c.setAttribute('stroke-width','1.5');
     c.style.cursor=isLatest?'default':'pointer';
     if(!isLatest){{

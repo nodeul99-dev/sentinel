@@ -14,10 +14,14 @@ def render():
         del st.query_params["hist_kw"]
 
     st.markdown(
-        '<p style="font-size:1.13rem;font-weight:600;color:#14532d;margin:0 0 2px;">'
+        '<p style="font-size:1.13rem;font-weight:600;color:#1A1A1A;margin:0 0 2px;">'
         '규정 검색</p>'
-        '<p style="font-size:0.75rem;color:#999;margin:0 0 12px;">'
+        '<p style="font-size:0.75rem;color:#5C5C5C;margin:0 0 20px;">'
         '검색어를 입력하면 해당 단어가 포함된 조문을 즉시 확인할 수 있습니다.</p>',
+        unsafe_allow_html=True,
+    )
+    st.markdown(
+        '<hr style="border:0;border-top:1px solid #e2e8f0;margin:0 0 32px;">',
         unsafe_allow_html=True,
     )
 
@@ -38,13 +42,13 @@ def render():
     if history:
         links = " <span style='color:#ddd;margin:0 2px;'>·</span> ".join(
             f'<a href="/?page=search&hist_kw={urllib.parse.quote(kw)}" target="_self"'
-            f' style="color:#16a34a;font-size:0.78rem;text-decoration:none;'
-            f'border-bottom:1px dotted #4ade80;">{html.escape(kw)}</a>'
+            f' style="color:#C8A96E;font-size:0.78rem;text-decoration:none;'
+            f'border-bottom:1px dotted #C8A96E;">{html.escape(kw)}</a>'
             for kw in history
         )
         st.markdown(
             f'<div style="margin:4px 0 8px;">'
-            f'<span style="font-size:0.72rem;color:#4ade80;font-weight:600;'
+            f'<span style="font-size:0.72rem;color:#C8A96E;font-weight:600;'
             f'margin-right:8px;letter-spacing:0.03em;">최근</span>{links}</div>',
             unsafe_allow_html=True,
         )

@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>프로젝트 센티넬 마스터플랜</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, 'Segoe UI', 'Noto Sans KR', sans-serif;
+    background: #eaf2eb;
+    color: #1e293b;
+    padding: 40px 24px 80px;
+  }
+
+  .container { max-width: 860px; margin: 0 auto; }
+
+  /* 헤더 */
+  .header {
+    background: #0f172a;
+    border-radius: 12px;
+    padding: 36px 40px;
+    margin-bottom: 28px;
+    position: relative;
+    overflow: hidden;
+  }
+  .header::before {
+    content: '';
+    position: absolute;
+    top: -40px; right: -40px;
+    width: 200px; height: 200px;
+    background: radial-gradient(circle, rgba(163,230,53,0.15) 0%, transparent 70%);
+    border-radius: 50%;
+  }
+  .header-label {
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    color: #a3e635;
+    text-transform: uppercase;
+    margin-bottom: 8px;
+  }
+  .header-title {
+    font-size: 2rem;
+    font-weight: 800;
+    color: #ffffff;
+    line-height: 1.2;
+    margin-bottom: 8px;
+  }
+  .header-title span { color: #a3e635; }
+  .header-sub {
+    font-size: 0.85rem;
+    color: #64748b;
+  }
+
+  /* 섹션 카드 */
+  .card {
+    background: #ffffff;
+    border-radius: 12px;
+    padding: 28px 32px;
+    margin-bottom: 16px;
+    box-shadow: 0 1px 8px rgba(0,0,0,.06);
+  }
+  .card-title {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 1.05rem;
+    font-weight: 700;
+    color: #0f172a;
+    margin-bottom: 18px;
+  }
+  .card-title .num {
+    width: 28px; height: 28px;
+    background: #a3e635;
+    color: #14532d;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 0.8rem;
+    font-weight: 800;
+    flex-shrink: 0;
+  }
+
+  /* 비전 */
+  .vision-text {
+    font-size: 1.05rem;
+    line-height: 1.8;
+    color: #334155;
+  }
+  .vision-text strong { color: #14532d; }
+
+  /* 로드맵 테이블 */
+  .roadmap { width: 100%; border-collapse: collapse; }
+  .roadmap th {
+    text-align: left;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: #94a3b8;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    padding: 0 12px 10px;
+    border-bottom: 1px solid #f1f5f9;
+  }
+  .roadmap td {
+    padding: 12px;
+    font-size: 0.88rem;
+    border-bottom: 1px solid #f8fafc;
+    vertical-align: top;
+  }
+  .roadmap tr:last-child td { border-bottom: none; }
+  .roadmap tr:hover td { background: #f9fef0; }
+
+  .badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 3px 10px;
+    border-radius: 20px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    white-space: nowrap;
+  }
+  .badge-done { background: #dcfce7; color: #15803d; }
+  .badge-todo { background: #f1f5f9; color: #64748b; }
+  .badge-last { background: #fef3c7; color: #92400e; }
+
+  .feat-name { font-weight: 600; color: #0f172a; margin-bottom: 3px; }
+  .feat-desc { color: #64748b; font-size: 0.82rem; line-height: 1.5; }
+
+  /* 보안·권한·기타 */
+  .point-list { list-style: none; }
+  .point-list li {
+    display: flex;
+    gap: 10px;
+    padding: 8px 0;
+    font-size: 0.88rem;
+    color: #334155;
+    line-height: 1.6;
+    border-bottom: 1px solid #f8fafc;
+  }
+  .point-list li:last-child { border-bottom: none; }
+  .point-list li::before {
+    content: '→';
+    color: #a3e635;
+    font-weight: 700;
+    flex-shrink: 0;
+  }
+
+  /* 레이아웃 다이어그램 */
+  .layout-diagram {
+    display: grid;
+    grid-template-rows: 52px 1fr;
+    grid-template-columns: 70px 1fr 220px;
+    gap: 8px;
+    height: 280px;
+    margin-top: 4px;
+  }
+  .ld-topbar {
+    grid-column: 1 / -1;
+    background: #0f172a;
+    border-radius: 8px;
+    display: flex; align-items: center; padding: 0 20px;
+    color: #a3e635;
+    font-size: 0.78rem;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+  }
+  .ld-topbar span { color: #64748b; font-weight: 400; margin-left: 12px; font-size: 0.72rem; }
+  .ld-sidebar {
+    background: #0f172a;
+    border-radius: 8px;
+    display: flex; flex-direction: column;
+    align-items: center;
+    padding: 16px 0;
+    gap: 14px;
+  }
+  .ld-sb-icon {
+    width: 32px; height: 32px;
+    background: rgba(163,230,53,0.12);
+    border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .ld-sb-icon svg { opacity: 0.6; }
+  .ld-sb-icon.active { background: rgba(163,230,53,0.25); }
+  .ld-sb-icon.active svg { opacity: 1; }
+  .ld-main {
+    background: #f8fafc;
+    border-radius: 8px;
+    border: 1.5px dashed #d1e8d4;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    gap: 6px;
+    color: #94a3b8;
+    font-size: 0.8rem;
+  }
+  .ld-main .label { color: #64748b; font-weight: 600; font-size: 0.88rem; }
+  .ld-side {
+    background: #f8fafc;
+    border-radius: 8px;
+    border: 1.5px dashed #d1e8d4;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    gap: 6px;
+    color: #94a3b8;
+    font-size: 0.8rem;
+  }
+  .ld-side .label { color: #64748b; font-weight: 600; font-size: 0.88rem; }
+
+  .panel-desc {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin-top: 16px;
+  }
+  .panel-item {
+    background: #f8fafc;
+    border-radius: 8px;
+    padding: 12px 14px;
+    font-size: 0.82rem;
+  }
+  .panel-item strong { display: block; color: #14532d; margin-bottom: 3px; font-size: 0.83rem; }
+  .panel-item span { color: #64748b; line-height: 1.5; }
+
+  /* 날짜 */
+  .footer {
+    text-align: center;
+    margin-top: 36px;
+    font-size: 0.75rem;
+    color: #94a3b8;
+  }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <!-- 헤더 -->
+  <div class="header">
+    <div class="header-label">Project Sentinel · Master Plan</div>
+    <div class="header-title">프로젝트 <span>센티넬</span></div>
+    <div class="header-sub">DS투자증권 리스크관리실 리스크포털 · 마스터플랜 v1.0 · 2026-02-26</div>
+  </div>
+
+  <!-- 1. 비전 -->
+  <div class="card">
+    <div class="card-title"><div class="num">1</div> 전체 비전</div>
+    <p class="vision-text">
+      DS투자증권 <strong>리스크관리실</strong>의 업무 전반을 하나의 포털에서 처리할 수 있는
+      <strong>리스크포털 프로토타입</strong>을 구축한다.<br>
+      규정검색, 건전성 모니터링, 위원회 운영, 손익 보고, 스트레스테스트 시뮬레이션 등
+      리스크관리 핵심 업무를 단계적으로 탑재하여 실무 중심 플랫폼으로 발전시킨다.
+    </p>
+  </div>
+
+  <!-- 2. 기능 로드맵 -->
+  <div class="card">
+    <div class="card-title"><div class="num">2</div> 주요 기능 로드맵</div>
+    <table class="roadmap">
+      <thead>
+        <tr>
+          <th style="width:32px"></th>
+          <th style="width:200px">기능</th>
+          <th>설명</th>
+          <th style="width:90px">상태</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td style="color:#94a3b8;font-size:0.8rem;font-weight:600;">가</td>
+          <td><div class="feat-name">규정검색</div></td>
+          <td><div class="feat-desc">조문 검색, PDF 업로드(사규·모범규준), 법제처 크롤링(법령·감독규정)</div></td>
+          <td><span class="badge badge-done">✅ 완료</span></td>
+        </tr>
+        <tr>
+          <td style="color:#94a3b8;font-size:0.8rem;font-weight:600;">나</td>
+          <td><div class="feat-name">재무건전성비율 모니터링</div></td>
+          <td><div class="feat-desc">국내 증권사 NCR 순위표, 분기별 추이, 금감원 FISIS 자동 수집</div></td>
+          <td><span class="badge badge-done">✅ 완료</span></td>
+        </tr>
+        <tr>
+          <td style="color:#94a3b8;font-size:0.8rem;font-weight:600;">라</td>
+          <td><div class="feat-name">위험관리실무위원회 운영</div></td>
+          <td><div class="feat-desc">위원회 일정 관리, 진행상황 추적, 결과 체크</div></td>
+          <td><span class="badge badge-todo">🔲 미구현</span></td>
+        </tr>
+        <tr>
+          <td style="color:#94a3b8;font-size:0.8rem;font-weight:600;">마</td>
+          <td><div class="feat-name">캘린더</div></td>
+          <td><div class="feat-desc">구글 캘린더 임베딩</div></td>
+          <td><span class="badge badge-todo">🔲 미구현</span></td>
+        </tr>
+        <tr>
+          <td style="color:#94a3b8;font-size:0.8rem;font-weight:600;">사</td>
+          <td><div class="feat-name">손익 보고 화면</div></td>
+          <td><div class="feat-desc">프런트 부서 전일자 손익 입력 → 대시보드·일별 추이 확인</div></td>
+          <td><span class="badge badge-todo">🔲 미구현</span></td>
+        </tr>
+        <tr>
+          <td style="color:#94a3b8;font-size:0.8rem;font-weight:600;">바</td>
+          <td><div class="feat-name">스트레스테스트 시뮬레이터</div></td>
+          <td><div class="feat-desc">주식·파생·채권 포지션별 시장리스크·유동성리스크 시나리오 손실 점검</div></td>
+          <td><span class="badge badge-todo">🔲 미구현</span></td>
+        </tr>
+        <tr>
+          <td style="color:#94a3b8;font-size:0.8rem;font-weight:600;">다</td>
+          <td><div class="feat-name">회사 리스크 대시보드</div></td>
+          <td><div class="feat-desc">포지션 및 리스크 현황 종합 — 가장 복잡하며 최후 순위</div></td>
+          <td><span class="badge badge-last">⏳ 최후순위</span></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- 3. 보안 -->
+  <div class="card">
+    <div class="card-title"><div class="num">3</div> 보안</div>
+    <ul class="point-list">
+      <li>보안이 무엇보다 최우선 — 내부 리스크 데이터·포지션 정보를 다루는 포털</li>
+      <li>인증 없이 접근 가능한 화면은 없어야 함</li>
+      <li>민감 데이터(포지션, 손익) 전송·저장 시 암호화 고려</li>
+      <li>외부 API 키는 환경변수로 관리, 코드 하드코딩 금지</li>
+    </ul>
+  </div>
+
+  <!-- 4. 접근권한 -->
+  <div class="card">
+    <div class="card-title"><div class="num">4</div> 접근 권한</div>
+    <ul class="point-list">
+      <li>접속자별 차등 권한 배정 — 리스크관리실 전체 / 프런트 부서 / 읽기 전용 등</li>
+      <li>권한 체계는 기능 확장에 따라 점진적으로 세분화</li>
+      <li>관리자가 UI에서 계정별 권한을 직접 설정할 수 있어야 함</li>
+    </ul>
+  </div>
+
+  <!-- 5. 확장성 -->
+  <div class="card">
+    <div class="card-title"><div class="num">5</div> 확장성</div>
+    <ul class="point-list">
+      <li>신규 기능 추가 시 기존 코드·DB에 최소한의 영향만 미쳐야 함</li>
+      <li><code style="background:#f1f5f9;padding:1px 5px;border-radius:3px;font-size:0.82rem;">views/</code>에 뷰 추가 + <code style="background:#f1f5f9;padding:1px 5px;border-radius:3px;font-size:0.82rem;">app.py</code> 라우팅 등록만으로 기능 추가 가능한 구조 유지</li>
+      <li>DB는 기능별 테이블 분리 (규정검색 / FSS / 손익 / 포지션 등)</li>
+    </ul>
+  </div>
+
+  <!-- 6. 레이아웃 -->
+  <div class="card">
+    <div class="card-title"><div class="num">6</div> 레이아웃 원칙</div>
+    <p style="font-size:0.83rem;color:#64748b;margin-bottom:16px;">어떤 화면이든 동일한 4-패널 구조를 유지한다.</p>
+
+    <div class="layout-diagram">
+      <!-- 상단바 -->
+      <div class="ld-topbar">
+        sentinel.DS
+        <span>규정검색 &nbsp;·&nbsp; 재무건전성비율 &nbsp;·&nbsp; 위원회 &nbsp;·&nbsp; ···</span>
+      </div>
+      <!-- 사이드바 -->
+      <div class="ld-sidebar">
+        <div class="ld-sb-icon active">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#a3e635" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+        </div>
+        <div class="ld-sb-icon">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#a3e635" stroke-width="2.5"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+        </div>
+        <div class="ld-sb-icon">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#a3e635" stroke-width="2.5"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+        </div>
+      </div>
+      <!-- 메인 패널 -->
+      <div class="ld-main">
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#d1e8d4" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg>
+        <div class="label">메인 패널</div>
+        <div style="font-size:0.75rem;">주요 콘텐츠</div>
+      </div>
+      <!-- 보조 패널 -->
+      <div class="ld-side">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#d1e8d4" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/></svg>
+        <div class="label">보조 패널</div>
+        <div style="font-size:0.75rem;">상세·차트</div>
+      </div>
+    </div>
+
+    <div class="panel-desc">
+      <div class="panel-item"><strong>상단바 (Topbar)</strong><span>로고, 글로벌 메뉴 네비게이션</span></div>
+      <div class="panel-item"><strong>사이드바</strong><span>현재 섹션 서브메뉴 (아이콘 전용, 70px 고정)</span></div>
+      <div class="panel-item"><strong>메인 패널</strong><span>주요 콘텐츠 — 검색결과, 테이블, 입력폼 등</span></div>
+      <div class="panel-item"><strong>보조 패널</strong><span>선택 항목 상세, 원문, 스파크라인 등</span></div>
+    </div>
+  </div>
+
+  <div class="footer">Project Sentinel · DS투자증권 리스크관리실 · 2026-02-26</div>
+
+</div>
+</body>
+</html>

@@ -90,8 +90,7 @@ def fetch_company_list(session: requests.Session) -> List[dict]:
         if data['result']['err_cd'] == '000':
             return [c for c in data['result']['list'] if is_domestic_company(c)]
         return []
-    except Exception as e:
-        print(f"증권사 목록 조회 실패: {e}")
+    except Exception:
         return []
 
 
@@ -206,9 +205,7 @@ def collect_all_securities_data(quarter: str) -> List[dict]:
     mm = quarter_to_month(quarter)
     session = get_session()
 
-    print(f"증권사 목록 조회 중...")
     companies = fetch_company_list(session)
-    print(f"{len(companies)}개 증권사 발견")
 
     results = []
     with ThreadPoolExecutor(max_workers=5) as executor:
@@ -220,7 +217,5 @@ def collect_all_securities_data(quarter: str) -> List[dict]:
             res = future.result()
             if res:
                 results.append(res)
-                print(f"  수집: {res['company_name']}")
 
-    print(f"총 {len(results)}개 수집 완료")
     return results

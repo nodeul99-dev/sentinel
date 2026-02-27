@@ -9,10 +9,10 @@ from db import search_articles
 CATEGORIES = ["법령", "모범규준", "사규", "감독규정"]
 
 CATEGORY_COLORS = {
-    "법령":    "#15803d",
-    "모범규준": "#047857",
-    "사규":    "#0f766e",
-    "감독규정": "#4d7c0f",
+    "법령":    "#4A7C59",
+    "모범규준": "#3A5F8B",
+    "사규":    "#6A6A6A",
+    "감독규정": "#B87333",
 }
 
 
@@ -22,7 +22,7 @@ def run_search(keyword: str, selected_categories: list[str]) -> list[dict]:
 
 
 _MARK_STYLE = (
-    'background:#a3e635;color:#14532d;'
+    'background:#C8A96E;color:#FFFFFF;'
     'padding:0 2px;border-radius:2px;font-weight:600;'
 )
 
@@ -40,27 +40,6 @@ def _apply_highlight(escaped_text: str, keyword: str) -> str:
 def highlight_snippet(text: str, keyword: str) -> str:
     return _apply_highlight(html.escape(text), keyword)
 
-
-def highlight_text(text: str, keyword: str, max_chars: int = 400) -> str:
-    if not keyword.strip():
-        escaped = html.escape(text[:max_chars])
-        return escaped + ("..." if len(text) > max_chars else "")
-
-    pattern = re.compile(re.escape(keyword), re.IGNORECASE)
-    match = pattern.search(text)
-
-    if match:
-        start = max(0, match.start() - 100)
-        end = min(len(text), match.end() + 300)
-        snippet = text[start:end]
-        prefix = "..." if start > 0 else ""
-        suffix = "..." if end < len(text) else ""
-    else:
-        snippet = text[:max_chars]
-        prefix = ""
-        suffix = "..." if len(text) > max_chars else ""
-
-    return prefix + _apply_highlight(html.escape(snippet), keyword) + suffix
 
 
 _PARAGRAPH_START = re.compile(
